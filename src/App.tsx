@@ -1,0 +1,158 @@
+import { useState, useEffect, useCallback } from 'react';
+import { ToastProvider } from './components/Toast';
+import { PriceVisibilityProvider, usePriceVisibility } from './components/PriceVisibility';
+import LoginPage from './components/LoginPage';
+import Sidebar from './components/Sidebar';
+import SalesPage from './pages/SalesPage';
+import ProductsPage from './pages/ProductsPage';
+import RepairsPage from './pages/RepairsPage';
+import PhoneSalesPage from './pages/PhoneSalesPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import RequestsPage from './pages/RequestsPage';
+import CalculatorPage from './pages/CalculatorPage';
+import PurchasesPage from './pages/PurchasesPage';
+import ExpensesPage from './pages/ExpensesPage';
+import SuppliersPage from './pages/SuppliersPage';
+import type { Category, Product, Sale, RepairRecord, PhoneSale, PhoneStock, Expense, CustomerRequest, Supplier, Purchase } from './types';
+import * as api from './utils/api';
+
+const viewLabels: Record<string, string> = {
+  sales: 'Satış & Raporlar', products: 'Ürünler', repairs: 'Tamir Kayıtları',
+  phoneSales: 'Telefon Satışları', analytics: 'Analizler', requests: 'İstek & Siparişler',
+  calculator: 'Hesap Makinası', purchases: 'Alışlar', expenses: 'Giderler', suppliers: 'Tedarikçiler',
+};
+
+export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('isAuth') === 'true');
+  const [activeView, setActiveView] = useState('sales');
+  const [loading, setLoading] = useState(false);
+
+  // Data states
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [repairs, setRepairs] = useState<RepairRecord[]>([]);
+  const [phoneSales, setPhoneSales] = useState<PhoneSale[]>([]);
+  const [phoneStocks, setPhoneStocks] = useState<PhoneStock[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [requests, setRequests] = useState<CustomerRequest[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+
+  const loadAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const results = await Promise.allSettled([
+        api.getCategories().then(setCategories),
+        api.getProducts().then(setProducts),
+        api.getSales().then(setSales),
+        api.getRepairs().then(setRepairs),
+        api.getPhoneSales().then(setPhoneSales),
+        api.getPhoneStocks().then(setPhoneStocks),
+        api.getExpenses().then(setExpenses),
+        api.getCustomerRequests().then(setRequests),
+        api.getSuppliers().then(setSuppliers),
+        api.getPurchases().then(setPurchases),
+      ]);
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn(`Data load ${i} failed:`, r.reason);
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) loadAllData();
+  }, [isAuthenticated, loadAllData]);
+
+  const handleLogin = () => setIsAuthenticated(true);
+  const handleLogout = () => {
+    localStorage.removeItem('isAuth');
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <ToastProvider>
+        <LoginPage onLogin={handleLogin} />
+      </ToastProvider>
+    );
+  }
+
+  const renderView = () => {
+    if (loading) {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-2 border-primary border-t-transparent mx-auto mb-4"></div>
+            <p className="text-slate-400 text-sm">Veriler yükleniyor...</p>
+          </div>
+        </div>
+      );
+    }
+
+    switch (activeView) {
+      case 'sales': return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} categories={categories} setSales={setSales} onRefresh={loadAllData} />;
+      case 'products': return <ProductsPage products={products} categories={categories} setProducts={setProducts} setCategories={setCategories} />;
+      case 'repairs': return <RepairsPage repairs={repairs} setRepairs={setRepairs} suppliers={suppliers} setSuppliers={setSuppliers} />;
+      case 'phoneSales': return <PhoneSalesPage phoneStocks={phoneStocks} phoneSales={phoneSales} setPhoneStocks={setPhoneStocks} setPhoneSales={setPhoneSales} />;
+      case 'analytics': return <AnalyticsPage sales={sales} repairs={repairs} phoneSales={phoneSales} expenses={expenses} products={products} />;
+      case 'requests': return <RequestsPage requests={requests} setRequests={setRequests} />;
+      case 'calculator': return <CalculatorPage />;
+      case 'purchases': return <PurchasesPage purchases={purchases} suppliers={suppliers} products={products} setPurchases={setPurchases} setProducts={setProducts} onRefresh={loadAllData} />;
+      case 'expenses': return <ExpensesPage expenses={expenses} setExpenses={setExpenses} />;
+      case 'suppliers': return <SuppliersPage suppliers={suppliers} setSuppliers={setSuppliers} />;
+      default: return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} categories={categories} setSales={setSales} onRefresh={loadAllData} />;
+    }
+  };
+
+  return (
+    <ToastProvider>
+      <PriceVisibilityProvider>
+        <AppShell activeView={activeView} onViewChange={setActiveView} onLogout={handleLogout} renderView={renderView} />
+      </PriceVisibilityProvider>
+    </ToastProvider>
+  );
+}
+
+function AppShell({ activeView, onViewChange, onLogout, renderView }: { activeView: string; onViewChange: (v: string) => void; onLogout: () => void; renderView: () => React.ReactNode }) {
+  const { visible, toggle } = usePriceVisibility();
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar activeView={activeView} onViewChange={onViewChange} onLogout={onLogout} />
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* Header */}
+        <header className="h-16 border-b border-slate-800 bg-surface-dark/50 backdrop-blur-md flex items-center justify-between px-6 flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-slate-400">StokTakip Pro</span>
+            <span className="text-slate-600">/</span>
+            <span className="font-medium text-white">{viewLabels[activeView] || activeView}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <input className="bg-background-dark border-none rounded-full py-1.5 pl-10 pr-4 text-sm w-64 focus:ring-2 focus:ring-primary/50 text-white placeholder:text-slate-400 outline-none" placeholder="Genel arama..." type="text" />
+            </div>
+            <button
+              onClick={toggle}
+              title={visible ? 'Fiyatları Gizle' : 'Fiyatları Göster'}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${visible
+                ? 'text-slate-400 hover:bg-surface-hover hover:text-white'
+                : 'text-primary bg-primary/10 ring-1 ring-primary/30'
+                }`}
+            >
+              <span className="material-symbols-outlined text-xl">{visible ? 'visibility' : 'visibility_off'}</span>
+            </button>
+            <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-surface-hover transition-colors">
+              <span className="material-symbols-outlined text-xl">notifications</span>
+            </button>
+          </div>
+        </header>
+        {/* Content */}
+        {renderView()}
+      </main>
+    </div>
+  );
+}
