@@ -90,7 +90,7 @@ export default function RequestsPage({ requests, setRequests }: RequestsPageProp
             </div>
 
             {/* Filters */}
-            <div className="flex gap-3 items-center bg-surface-dark border border-slate-700/50 p-4 rounded-xl">
+            <div className="flex flex-col md:flex-row gap-3 items-center bg-surface-dark border border-slate-700/50 p-4 rounded-xl">
                 <div className="relative w-64">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
                     <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Müşteri, ürün..."
@@ -149,13 +149,13 @@ export default function RequestsPage({ requests, setRequests }: RequestsPageProp
             {/* Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-lg animate-fade-in" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-lg animate-fade-in" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-6 border-b border-slate-700">
                             <h3 className="text-lg font-bold text-white">{editing ? 'İstek Düzenle' : 'Yeni İstek'}</h3>
                             <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Müşteri Adı *</label>
                                     <input type="text" value={form.customerName} onChange={e => setForm({ ...form, customerName: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-primary outline-none" /></div>
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Telefon</label>
@@ -163,7 +163,7 @@ export default function RequestsPage({ requests, setRequests }: RequestsPageProp
                             </div>
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">İstenen Ürün *</label>
                                 <input type="text" value={form.productName} onChange={e => setForm({ ...form, productName: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-primary outline-none" /></div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Tahmini Bütçe</label>
                                     <input type="number" value={form.estimatedBudget} onChange={e => setForm({ ...form, estimatedBudget: Number(e.target.value) })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-primary outline-none" /></div>
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Öncelik</label>

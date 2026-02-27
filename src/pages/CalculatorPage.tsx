@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '../utils/helpers';
 import { useFormatPrice } from '../components/PriceVisibility';
 
@@ -24,13 +24,15 @@ export default function CalculatorPage() {
     const [vatCalcRate, setVatCalcRate] = useState(20);
 
     // Standard calculator
-    const handleCalcInput = (val: string) => {
+    const handleCalcInput = useCallback((val: string) => {
         if (val === 'C') { setDisplay('0'); setExpression(''); return; }
         if (val === '⌫') { setDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0'); return; }
         if (val === '=') {
             try {
                 const expr = (expression + display).replace(/×/g, '*').replace(/÷/g, '/');
+                // eslint-disable-next-line
                 const result = new Function('return ' + expr)();
+                if (!isFinite(result)) throw new Error('Invalid');
                 const resultStr = parseFloat(result.toFixed(8)).toString();
                 setHistory(prev => [`${expression}${display} = ${resultStr}`, ...prev].slice(0, 10));
                 setDisplay(resultStr);
@@ -45,7 +47,34 @@ export default function CalculatorPage() {
         }
         if (val === '.' && display.includes('.')) return;
         setDisplay(prev => prev === '0' && val !== '.' ? val : prev + val);
-    };
+    }, [display, expression]);
+
+    // Keyboard support
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (activeTab !== 'standard') return;
+            // Disable if user is typing in an input field (e.g. searching)
+            if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+
+            const keyMap: Record<string, string> = {
+                'Enter': '=', '=': '=',
+                'Backspace': '⌫', 'Delete': 'C', 'Escape': 'C',
+                '+': '+', '-': '-', '*': '×', '/': '÷',
+                '.': '.', ',': '.'
+            };
+
+            if (keyMap[e.key]) {
+                e.preventDefault();
+                handleCalcInput(keyMap[e.key]);
+            } else if (/^[0-9]$/.test(e.key)) {
+                e.preventDefault();
+                handleCalcInput(e.key);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [activeTab, handleCalcInput]);
 
     // Profit calculation
     const grossProfit = salePrice - purchasePrice;
@@ -101,8 +130,8 @@ export default function CalculatorPage() {
 
                 {/* Standard Calculator */}
                 {activeTab === 'standard' && (
-                    <div className="grid grid-cols-3 gap-6">
-                        <div className="col-span-2 bg-surface-dark border border-slate-700/50 rounded-2xl p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="col-span-1 lg:col-span-2 bg-surface-dark border border-slate-700/50 rounded-2xl p-6">
                             {/* Display */}
                             <div className="bg-slate-800/50 rounded-xl p-4 mb-4">
                                 <div className="text-right text-sm text-slate-400 h-6 overflow-hidden">{expression}</div>
@@ -113,9 +142,9 @@ export default function CalculatorPage() {
                                 {calcBtns.flat().filter(Boolean).map(btn => (
                                     <button key={btn} onClick={() => handleCalcInput(btn)}
                                         className={`p-4 rounded-xl text-lg font-semibold transition-all ${btn === '=' ? 'bg-primary hover:bg-primary-hover text-white row-span-1 shadow-lg shadow-primary/25' :
-                                                ['C', '⌫'].includes(btn) ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
-                                                    ['+', '-', '×', '÷'].includes(btn) ? 'bg-primary/10 text-primary hover:bg-primary/20' :
-                                                        'bg-slate-800 text-white hover:bg-slate-700'
+                                            ['C', '⌫'].includes(btn) ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' :
+                                                ['+', '-', '×', '÷'].includes(btn) ? 'bg-primary/10 text-primary hover:bg-primary/20' :
+                                                    'bg-slate-800 text-white hover:bg-slate-700'
                                             }`}>
                                         {btn}
                                     </button>
@@ -136,7 +165,7 @@ export default function CalculatorPage() {
                 {/* Profit Calculator */}
                 {activeTab === 'profit' && (
                     <div className="bg-surface-dark border border-slate-700/50 rounded-2xl p-6 space-y-6">
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">Alış Fiyatı</label>
                                 <input type="number" value={purchasePrice} onChange={e => setPurchasePrice(Number(e.target.value))}
                                     className="w-full bg-slate-800 border border-slate-700 rounded-lg py-3 px-4 text-lg text-white font-bold focus:border-primary outline-none" /></div>
@@ -149,7 +178,7 @@ export default function CalculatorPage() {
                                     <option value={1}>%1</option><option value={10}>%10</option><option value={20}>%20</option>
                                 </select></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {[
                                 { label: 'Brüt Kâr', value: fp(grossProfit), color: grossProfit >= 0 ? 'text-emerald-400' : 'text-red-400' },
                                 { label: 'Kâr Marjı', value: `%${margin.toFixed(1)}`, color: margin >= 0 ? 'text-emerald-400' : 'text-red-400' },
@@ -172,7 +201,7 @@ export default function CalculatorPage() {
                             <button onClick={() => setVatDirection('exclusive')} className={`px-4 py-2 rounded-lg text-sm font-medium ${vatDirection === 'exclusive' ? 'bg-primary text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>KDV Hariç → Dahil</button>
                             <button onClick={() => setVatDirection('inclusive')} className={`px-4 py-2 rounded-lg text-sm font-medium ${vatDirection === 'inclusive' ? 'bg-primary text-white' : 'bg-slate-800 text-slate-300 border border-slate-700'}`}>KDV Dahil → Hariç</button>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">Tutar</label>
                                 <input type="number" value={vatAmount} onChange={e => setVatAmount(Number(e.target.value))}
                                     className="w-full bg-slate-800 border border-slate-700 rounded-lg py-3 px-4 text-lg text-white font-bold focus:border-primary outline-none" /></div>
@@ -182,7 +211,7 @@ export default function CalculatorPage() {
                                     <option value={1}>%1</option><option value={10}>%10</option><option value={20}>%20</option>
                                 </select></div>
                         </div>
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             {[
                                 { label: 'KDV Hariç Tutar', value: fp(vatResult.base), color: 'text-white' },
                                 { label: 'KDV Tutarı', value: fp(vatResult.vat), color: 'text-orange-400' },

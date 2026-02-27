@@ -1,6 +1,6 @@
 import type {
     Category, Product, Sale, RepairRecord, PhoneSale, PhoneStock,
-    Expense, CustomerRequest, Supplier, Purchase, PurchaseItem, CariHareket, Payment
+    Expense, CustomerRequest, Supplier, Purchase, PurchaseItem, CariHareket, Payment, Customer
 } from '../types';
 
 const SUPABASE_URL = 'https://xtjvbkhappiceyrlovkx.supabase.co';
@@ -124,7 +124,14 @@ export async function deleteProduct(id: string) {
 // ── Sales ──
 export async function getSales(): Promise<Sale[]> {
     const result = await edgeFetch('/sales');
-    return result.data || [];
+    const raw: Sale[] = result.data || [];
+    // Deduplicate by ID — edge function may return duplicates
+    const seen = new Set<string>();
+    return raw.filter(s => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+    });
 }
 export async function saveSale(s: Sale) {
     if (s.id && s.id.length > 5) {
@@ -281,6 +288,13 @@ export async function saveSupplier(s: Partial<Supplier>) {
     const res = await dbFetch('/suppliers', { method: 'POST', body: JSON.stringify(payload) });
     return res?.[0] ? snakeToCamel(res[0]) : null;
 }
+export async function updateSupplierBalance(supplierId: string, addAmount: number) {
+    // Use edge function to bypass RLS
+    return edgeFetch('/supplier-balance', {
+        method: 'POST',
+        body: JSON.stringify({ supplier_id: supplierId, add_amount: addAmount }),
+    });
+}
 
 // ── Purchases (Supabase) ──
 export async function getPurchases(): Promise<Purchase[]> {
@@ -324,7 +338,12 @@ export async function saveCariHareket(h: Partial<CariHareket>) {
     const payload = camelToSnake(h as unknown as Record<string, unknown>);
     delete payload['created_at'];
     delete payload['id'];
-    return dbFetch('/cari_hareketler', { method: 'POST', body: JSON.stringify(payload) });
+    // Use edge function to bypass RLS
+    const result = await edgeFetch('/cari-hareket', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    return result;
 }
 
 // ── Payments (Supabase) ──
@@ -340,4 +359,24 @@ export async function updateProductStockDB(productId: string, stock: number, pur
     const body: Record<string, unknown> = { stock };
     if (purchasePrice !== undefined) body.purchase_price = purchasePrice;
     return dbFetch(`/products?id=eq.${productId}`, { method: 'PATCH', body: JSON.stringify(body) });
+}
+
+// ── Customers (Supabase) ──
+export async function getCustomers(): Promise<Customer[]> {
+    const data = await dbFetch('/customers?select=*&order=created_at.desc');
+    return (data || []).map((d: Record<string, unknown>) => snakeToCamel(d) as unknown as Customer);
+}
+export async function saveCustomer(c: Partial<Customer>) {
+    const payload = camelToSnake(c as unknown as Record<string, unknown>);
+    delete payload['created_at'];
+    if (c.id) {
+        const res = await dbFetch(`/customers?id=eq.${c.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        return res?.[0] ? snakeToCamel(res[0]) : null;
+    }
+    delete payload['id'];
+    const res = await dbFetch('/customers', { method: 'POST', body: JSON.stringify(payload) });
+    return res?.[0] ? snakeToCamel(res[0]) : null;
+}
+export async function deleteCustomer(id: string) {
+    return dbFetch(`/customers?id=eq.${id}`, { method: 'DELETE' });
 }

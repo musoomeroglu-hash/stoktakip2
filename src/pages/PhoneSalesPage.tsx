@@ -1,21 +1,26 @@
-import { useState } from 'react';
-import type { PhoneStock, PhoneSale } from '../types';
+import { useState, useRef, useCallback } from 'react';
+import type { PhoneStock, PhoneSale, Customer } from '../types';
 import { formatDate, generateId, getPaymentMethodLabel } from '../utils/helpers';
 import { useFormatPrice } from '../components/PriceVisibility';
 import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
+import { Html5Qrcode } from 'html5-qrcode';
+import CustomerSelector from '../components/CustomerSelector';
 
 interface PhoneSalesPageProps {
     phoneStocks: PhoneStock[];
     phoneSales: PhoneSale[];
     setPhoneStocks: (ps: PhoneStock[]) => void;
     setPhoneSales: (ps: PhoneSale[]) => void;
+    customers: Customer[];
+    setCustomers: (c: Customer[]) => void;
 }
 
-export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks, setPhoneSales }: PhoneSalesPageProps) {
+export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks, setPhoneSales, customers, setCustomers }: PhoneSalesPageProps) {
     const fp = useFormatPrice();
     const { showToast } = useToast();
     const [selectedStock, setSelectedStock] = useState<PhoneStock | null>(null);
+    const [selectedPhoneSale, setSelectedPhoneSale] = useState<PhoneSale | null>(null);
     const [showAddStock, setShowAddStock] = useState(false);
     const [search, setSearch] = useState('');
 
@@ -27,6 +32,38 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
 
     // Add stock form
     const [stockForm, setStockForm] = useState({ brand: '', model: '', imei: '', purchasePrice: 0, salePrice: 0, notes: '' });
+    const [showImeiScanner, setShowImeiScanner] = useState(false);
+    const scannerRef = useRef<Html5Qrcode | null>(null);
+
+    const startImeiScanner = useCallback(async () => {
+        try {
+            const scanner = new Html5Qrcode('phone-imei-scanner-region');
+            scannerRef.current = scanner;
+            await scanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 280, height: 100 } },
+                (decodedText) => {
+                    setStockForm(f => ({ ...f, imei: decodedText }));
+                    scanner.stop().then(() => scanner.clear()).catch(() => { });
+                    scannerRef.current = null;
+                    setShowImeiScanner(false);
+                    showToast('IMEI okundu!');
+                },
+                () => { }
+            );
+        } catch (err) {
+            showToast('Kamera açılamadı!', 'error');
+            setShowImeiScanner(false);
+        }
+    }, [showToast]);
+
+    const stopImeiScanner = useCallback(() => {
+        if (scannerRef.current) {
+            scannerRef.current.stop().then(() => scannerRef.current?.clear()).catch(() => { });
+            scannerRef.current = null;
+        }
+        setShowImeiScanner(false);
+    }, []);
 
     const inStockPhones = phoneStocks.filter(ps => ps.status === 'in_stock');
     const filteredStocks = inStockPhones.filter(ps =>
@@ -89,8 +126,8 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
 
     return (
         <div className="flex-1 flex h-full overflow-hidden">
-            {/* Left Panel - Stock Grid */}
-            <div className="flex-1 overflow-y-auto p-6 border-r border-slate-700 scrollbar-thin">
+            {/* Main Panel - Stock Grid & Sales */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 scrollbar-thin">
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-white">Telefon Stoku</h2>
@@ -117,10 +154,7 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                         <div
                             key={ps.id}
                             onClick={() => handleSelectStock(ps)}
-                            className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedStock?.id === ps.id
-                                    ? 'border-cyan-500 bg-cyan-500/10 ring-1 ring-cyan-500/30'
-                                    : 'border-slate-700 bg-surface-dark hover:border-slate-600'
-                                }`}
+                            className={`p-4 rounded-xl border cursor-pointer transition-all hover:border-cyan-500 bg-surface-dark group`}
                         >
                             <div className="flex justify-between items-start">
                                 <div>
@@ -145,8 +179,8 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                     <div className="mt-8">
                         <h3 className="text-lg font-semibold text-white mb-4">Son Satışlar</h3>
                         <div className="space-y-2">
-                            {phoneSales.slice(0, 5).map(ps => (
-                                <div key={ps.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50">
+                            {phoneSales.map(ps => (
+                                <div key={ps.id} onClick={() => { setSelectedPhoneSale(ps); setSelectedStock(null); }} className="flex items-center justify-between p-3 rounded-lg cursor-pointer transition-all bg-slate-800/50 hover:bg-slate-700/50 border border-transparent hover:border-cyan-500/30">
                                     <div>
                                         <span className="text-sm font-medium text-white">{ps.brand} {ps.model}</span>
                                         <span className="text-xs text-slate-400 ml-2">{formatDate(ps.date)}</span>
@@ -162,62 +196,132 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                 )}
             </div>
 
-            {/* Right Panel - Sale Form */}
-            <div className="w-96 overflow-y-auto p-6 bg-surface-dark/50 scrollbar-thin">
-                <h3 className="text-lg font-bold text-white mb-6">Satış İşlemi</h3>
+            {/* Sale Form / Detail Modal */}
+            {(selectedStock || selectedPhoneSale) && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => { setSelectedStock(null); setSelectedPhoneSale(null); }}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in" onClick={e => e.stopPropagation()}>
+                        <div className="p-6">
+                            {/* Phone Sale Detail Panel */}
+                            {selectedPhoneSale ? (
+                                <div className="space-y-5">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-bold text-white">Satış Detayı</h3>
+                                        <button onClick={() => setSelectedPhoneSale(null)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400">
+                                            <span className="material-symbols-outlined">close</span>
+                                        </button>
+                                    </div>
 
-                {selectedStock ? (
-                    <div className="space-y-5">
-                        {/* Selected Phone Summary */}
-                        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
-                            <h4 className="font-semibold text-cyan-400">{selectedStock.brand} {selectedStock.model}</h4>
-                            <p className="text-xs text-slate-400 font-mono mt-1">{selectedStock.imei}</p>
-                            <div className="flex justify-between mt-3">
-                                <span className="text-sm text-slate-400">Alış: {fp(selectedStock.purchasePrice)}</span>
-                                <span className="text-sm text-emerald-400">Kâr: {fp(salePrice - selectedStock.purchasePrice)}</span>
-                            </div>
-                        </div>
+                                    {/* Device */}
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cihaz Bilgileri</p>
+                                        <h4 className="text-lg font-semibold text-cyan-400">{selectedPhoneSale.brand} {selectedPhoneSale.model}</h4>
+                                        {selectedPhoneSale.imei && <p className="text-xs text-slate-400 font-mono">IMEI: {selectedPhoneSale.imei}</p>}
+                                    </div>
 
-                        {/* Sale Price */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Satış Fiyatı</label>
-                            <input type="number" value={salePrice} onChange={e => setSalePrice(Number(e.target.value))}
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 px-3 text-sm text-white focus:border-cyan-500 outline-none text-lg font-bold" />
-                        </div>
+                                    {/* Customer */}
+                                    {(selectedPhoneSale.customerName || selectedPhoneSale.customerPhone) && (
+                                        <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Müşteri Bilgileri</p>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center"><span className="material-symbols-outlined text-cyan-400">person</span></div>
+                                                <div>
+                                                    <p className="font-medium text-white">{selectedPhoneSale.customerName || '—'}</p>
+                                                    <p className="text-xs text-slate-400">{selectedPhoneSale.customerPhone || '—'}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
-                        {/* Payment */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Ödeme Yöntemi</label>
-                            <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 px-3 text-sm text-white focus:border-cyan-500 outline-none">
-                                <option value="cash">Nakit</option><option value="card">Kart</option><option value="transfer">Havale</option>
-                            </select>
-                        </div>
+                                    {/* Date */}
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Satış Tarihi</p>
+                                        <div className="flex items-center gap-3">
+                                            <span className="material-symbols-outlined text-emerald-400 text-lg">event</span>
+                                            <p className="text-sm text-white">{formatDate(selectedPhoneSale.date)}</p>
+                                        </div>
+                                    </div>
 
-                        {/* Customer */}
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Müşteri Adı</label>
-                            <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Opsiyonel"
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 outline-none" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-1">Telefon</label>
-                            <input type="text" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="Opsiyonel"
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white placeholder:text-slate-500 focus:border-cyan-500 outline-none" />
-                        </div>
+                                    {/* Financials */}
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Fiyat Detayları</p>
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-sm"><span className="text-slate-400">Alış Fiyatı</span><span className="text-white font-medium">{fp(selectedPhoneSale.salePrice - selectedPhoneSale.profit)}</span></div>
+                                            <div className="flex justify-between text-sm"><span className="text-slate-400">Satış Fiyatı</span><span className="text-cyan-400 font-medium">{fp(selectedPhoneSale.salePrice)}</span></div>
+                                            <div className="border-t border-slate-700 pt-2 flex justify-between text-sm font-bold"><span className="text-slate-300">Net Kâr</span><span className="text-emerald-400">{fp(selectedPhoneSale.profit)}</span></div>
+                                        </div>
+                                    </div>
 
-                        <button onClick={handleSale}
-                            className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition-all">
-                            <span className="material-symbols-outlined">sell</span>Satışı Tamamla
-                        </button>
+                                    {/* Payment */}
+                                    <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Ödeme Yöntemi</p>
+                                        <p className="text-sm text-white">
+                                            {selectedPhoneSale.paymentMethod === 'cash' ? '💵 Nakit' : selectedPhoneSale.paymentMethod === 'card' ? '💳 Kart' : '🏦 Havale'}
+                                        </p>
+                                    </div>
+
+                                    {/* Notes */}
+                                    {selectedPhoneSale.notes && (
+                                        <div className="bg-slate-800/50 rounded-xl p-4 space-y-2">
+                                            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Notlar</p>
+                                            <p className="text-sm text-slate-300">{selectedPhoneSale.notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : selectedStock ? (
+                                <>
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-lg font-bold text-white">Satış İşlemi</h3>
+                                        <button onClick={() => setSelectedStock(null)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400">
+                                            <span className="material-symbols-outlined">close</span>
+                                        </button>
+                                    </div>
+                                    <div className="space-y-5">
+                                        {/* Selected Phone Summary */}
+                                        <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
+                                            <h4 className="font-semibold text-cyan-400">{selectedStock.brand} {selectedStock.model}</h4>
+                                            <p className="text-xs text-slate-400 font-mono mt-1">{selectedStock.imei}</p>
+                                            <div className="flex justify-between mt-3">
+                                                <span className="text-sm text-slate-400">Alış: {fp(selectedStock.purchasePrice)}</span>
+                                                <span className="text-sm text-emerald-400">Kâr: {fp(salePrice - selectedStock.purchasePrice)}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Sale Price */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-300 mb-1">Satış Fiyatı</label>
+                                            <input type="number" value={salePrice} onChange={e => setSalePrice(Number(e.target.value))}
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 px-3 text-sm text-white focus:border-cyan-500 outline-none text-lg font-bold" />
+                                        </div>
+
+                                        {/* Payment */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-300 mb-1">Ödeme Yöntemi</label>
+                                            <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 px-3 text-sm text-white focus:border-cyan-500 outline-none">
+                                                <option value="cash">Nakit</option><option value="card">Kart</option><option value="transfer">Havale</option>
+                                            </select>
+                                        </div>
+
+                                        {/* Customer */}
+                                        <CustomerSelector
+                                            customers={customers}
+                                            selectedCustomerName={customerName}
+                                            selectedCustomerPhone={customerPhone}
+                                            onSelect={(name, phone) => { setCustomerName(name); setCustomerPhone(phone); }}
+                                            onAddNew={async (c) => { try { const r = await api.saveCustomer(c); if (r) setCustomers([r as unknown as Customer, ...customers]); } catch { } }}
+                                        />
+
+                                        <button onClick={handleSale}
+                                            className="w-full py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-semibold shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 transition-all">
+                                            <span className="material-symbols-outlined">sell</span>Satışı Tamamla
+                                        </button>
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
                     </div>
-                ) : (
-                    <div className="text-center py-12 text-slate-400">
-                        <span className="material-symbols-outlined text-6xl mb-4 block">touch_app</span>
-                        <p>Satış yapabilmek için sol panelden bir telefon seçin</p>
-                    </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Add Stock Modal */}
             {showAddStock && (
@@ -237,8 +341,13 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-cyan-500 outline-none" /></div>
                             </div>
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">IMEI</label>
-                                <input type="text" value={stockForm.imei} onChange={e => setStockForm({ ...stockForm, imei: e.target.value })}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-cyan-500 outline-none" /></div>
+                                <div className="flex gap-2">
+                                    <input type="text" value={stockForm.imei} onChange={e => setStockForm({ ...stockForm, imei: e.target.value })}
+                                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-cyan-500 outline-none" placeholder="Manuel girin veya tarayın" />
+                                    <button type="button" onClick={() => setShowImeiScanner(true)} className="px-3 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg text-cyan-400 transition-all" title="Kamera ile IMEI tara">
+                                        <span className="material-symbols-outlined text-lg">photo_camera</span>
+                                    </button>
+                                </div></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Alış Fiyatı</label>
                                     <input type="number" value={stockForm.purchasePrice} onChange={e => setStockForm({ ...stockForm, purchasePrice: Number(e.target.value) })}
@@ -254,6 +363,25 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                         <div className="flex justify-end gap-3 p-6 border-t border-slate-700">
                             <button onClick={() => setShowAddStock(false)} className="px-4 py-2 text-sm text-slate-300 hover:bg-surface-hover rounded-lg">İptal</button>
                             <button onClick={handleAddStock} className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-cyan-500/25">Ekle</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* IMEI Scanner Modal */}
+            {showImeiScanner && (
+                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60]">
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-md overflow-hidden">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+                            <h3 className="text-lg font-bold text-white">IMEI Tarayıcı</h3>
+                            <button onClick={stopImeiScanner} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
+                        </div>
+                        <div className="p-4">
+                            <div id="phone-imei-scanner-region" className="rounded-lg overflow-hidden bg-black" style={{ minHeight: 280 }}></div>
+                            <p className="text-xs text-slate-400 mt-3 text-center">Telefon IMEI barkodunu kameraya gösterin</p>
+                        </div>
+                        <div className="p-4 border-t border-slate-700">
+                            {!scannerRef.current && <button onClick={startImeiScanner} className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-medium">Taramayı Başlat</button>}
                         </div>
                     </div>
                 </div>

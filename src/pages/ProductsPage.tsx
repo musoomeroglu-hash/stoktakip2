@@ -109,7 +109,7 @@ export default function ProductsPage({ products, categories, setProducts, setCat
     return (
         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
             {/* Stats */}
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                     { label: 'Toplam Ürün', value: totalProducts, icon: 'inventory_2', sub: 'Çeşit', color: 'text-blue-400', bgIcon: 'text-blue-500' },
                     { label: 'Toplam Stok Değeri', value: fp(totalValue), icon: 'payments', sub: 'Alış fiyatına göre', color: 'text-green-400', bgIcon: 'text-green-500' },
@@ -128,8 +128,8 @@ export default function ProductsPage({ products, categories, setProducts, setCat
             </div>
 
             {/* Filters */}
-            <div className="flex justify-between gap-4 items-center bg-surface-dark border border-slate-700/50 p-4 rounded-xl">
-                <div className="flex gap-3">
+            <div className="flex flex-col md:flex-row justify-between gap-4 items-center bg-surface-dark border border-slate-700/50 p-4 rounded-xl">
+                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
                     <div className="relative w-64">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
                         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
@@ -149,83 +149,78 @@ export default function ProductsPage({ products, categories, setProducts, setCat
                     <button onClick={() => setShowCategoryModal(true)} className="px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg text-sm flex items-center gap-2">
                         <span className="material-symbols-outlined text-lg">category</span>Kategori Yönet
                     </button>
-                    <button onClick={openCreateModal} className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-sm font-medium shadow-lg shadow-primary/25 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-lg">add</span>Yeni Ürün
-                    </button>
                 </div>
             </div>
 
             {/* Table */}
-            <div className="bg-surface-dark border border-slate-700/50 rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead><tr className="bg-slate-800/50 border-b border-slate-700 text-xs uppercase text-slate-400 font-semibold tracking-wider">
-                            <th className="p-4">Ürün Adı</th><th className="p-4">Kategori</th><th className="p-4">Barkod</th>
-                            <th className="p-4 text-right">Alış</th><th className="p-4 text-right">Satış</th><th className="p-4 w-32">Stok</th>
-                            <th className="p-4">Durum</th><th className="p-4 text-center">İşlemler</th>
-                        </tr></thead>
-                        <tbody className="divide-y divide-slate-700/50 text-sm">
-                            {filtered.length === 0 ? (
-                                <tr><td colSpan={8} className="text-center py-16 text-slate-400">
-                                    <span className="material-symbols-outlined text-6xl mb-4 block">inbox</span>
-                                    <p>Henüz ürün yok</p>
-                                    <button onClick={openCreateModal} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">İlk Ürünü Ekle</button>
-                                </td></tr>
-                            ) : filtered.map(p => {
-                                const status = getStockStatus(p.stock, p.minStock);
-                                const maxStock = Math.max(p.minStock * 3, p.stock, 10);
-                                return (
-                                    <tr key={p.id} className="hover:bg-surface-hover/50 transition-colors">
-                                        <td className="p-4 font-medium text-white">{p.name}</td>
-                                        <td className="p-4"><span className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">{p.categoryName}</span></td>
-                                        <td className="p-4 text-slate-400 font-mono text-xs">{p.barcode || '—'}</td>
-                                        <td className="p-4 text-right text-slate-300">{fp(p.purchasePrice)}</td>
-                                        <td className="p-4 text-right font-medium text-white">{fp(p.salePrice)}</td>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
-                                                    <div className={`h-full rounded-full transition-all ${p.stock === 0 ? 'bg-slate-500' : p.stock <= p.minStock ? 'bg-red-500' : 'bg-emerald-500'}`}
-                                                        style={{ width: `${Math.min(100, (p.stock / maxStock) * 100)}%` }}></div>
-                                                </div>
-                                                <span className="text-xs text-slate-300 w-8 text-right">{p.stock}</span>
+            <div className="bg-surface-dark border border-slate-700/50 rounded-xl overflow-x-auto">
+                <table className="w-full text-left min-w-[800px]">
+                    <thead><tr className="bg-slate-800/50 border-b border-slate-700 text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                        <th className="p-4 sticky left-0 z-20 bg-slate-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">Ürün Adı</th><th className="p-4">Kategori</th><th className="p-4">Barkod</th>
+                        <th className="p-4 text-right">Alış</th><th className="p-4 text-right">Satış</th><th className="p-4 w-32">Stok</th>
+                        <th className="p-4">Durum</th><th className="p-4 text-center">İşlemler</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-slate-700/50 text-sm">
+                        {filtered.length === 0 ? (
+                            <tr><td colSpan={8} className="text-center py-16 text-slate-400">
+                                <span className="material-symbols-outlined text-6xl mb-4 block">inbox</span>
+                                <p>Henüz ürün yok</p>
+                                <button onClick={openCreateModal} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">İlk Ürünü Ekle</button>
+                            </td></tr>
+                        ) : filtered.map(p => {
+                            const status = getStockStatus(p.stock, p.minStock);
+                            const maxStock = Math.max(p.minStock * 3, p.stock, 10);
+                            return (
+                                <tr key={p.id} className="hover:bg-slate-800 transition-colors group">
+                                    <td className="p-4 font-medium text-white sticky left-0 z-10 bg-slate-900 group-hover:bg-slate-800 transition-colors shadow-[2px_0_5px_-2px_rgba(0,0,0,0.3)]">{p.name}</td>
+                                    <td className="p-4"><span className="px-2.5 py-1 rounded-full text-xs bg-primary/10 text-primary font-medium">{p.categoryName}</span></td>
+                                    <td className="p-4 text-slate-400 font-mono text-xs">{p.barcode || '—'}</td>
+                                    <td className="p-4 text-right text-slate-300">{fp(p.purchasePrice)}</td>
+                                    <td className="p-4 text-right font-medium text-white">{fp(p.salePrice)}</td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 bg-slate-700 rounded-full h-2 overflow-hidden">
+                                                <div className={`h-full rounded-full transition-all ${p.stock === 0 ? 'bg-slate-500' : p.stock <= p.minStock ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                    style={{ width: `${Math.min(100, (p.stock / maxStock) * 100)}%` }}></div>
                                             </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                                                {status.pulse && <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
-                                                {status.label}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <div className="flex justify-center gap-1">
-                                                <button onClick={() => openEditModal(p)} className="p-1.5 rounded-lg hover:bg-primary/10 text-slate-400 hover:text-primary transition-colors">
-                                                    <span className="material-symbols-outlined text-lg">edit</span>
-                                                </button>
-                                                <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors">
-                                                    <span className="material-symbols-outlined text-lg">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-                <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between">
-                    <p className="text-sm text-slate-400">Toplam <span className="font-medium text-white">{filtered.length}</span> kayıt</p>
-                </div>
+                                            <span className="text-xs text-slate-300 w-8 text-right">{p.stock}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                                            {status.pulse && <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
+                                            {status.label}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex justify-center gap-1">
+                                            <button onClick={() => openEditModal(p)} className="p-1.5 rounded-lg hover:bg-primary/10 text-slate-400 hover:text-primary transition-colors">
+                                                <span className="material-symbols-outlined text-lg">edit</span>
+                                            </button>
+                                            <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors">
+                                                <span className="material-symbols-outlined text-lg">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-700 flex items-center justify-between bg-surface-dark rounded-b-xl border-x">
+                <p className="text-sm text-slate-400">Toplam <span className="font-medium text-white">{filtered.length}</span> kayıt</p>
             </div>
 
             {/* Product Modal */}
             {showProductModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowProductModal(false)}>
-                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-6 border-b border-slate-700">
                             <h3 className="text-lg font-bold text-white">{editingProduct ? 'Ürün Düzenle' : 'Yeni Ürün'}</h3>
                             <button onClick={() => setShowProductModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
                         </div>
-                        <div className="p-6 grid grid-cols-2 gap-4">
+                        <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">Ürün Adı *</label>
                                 <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-primary outline-none" /></div>
                             <div><label className="block text-sm font-medium text-slate-300 mb-1">Kategori *</label>
@@ -256,7 +251,7 @@ export default function ProductsPage({ products, categories, setProducts, setCat
             {/* Category Modal */}
             {showCategoryModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCategoryModal(false)}>
-                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-md animate-fade-in" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-md animate-fade-in" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-6 border-b border-slate-700">
                             <h3 className="text-lg font-bold text-white">Kategori Yönetimi</h3>
                             <button onClick={() => setShowCategoryModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>

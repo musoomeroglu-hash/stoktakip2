@@ -111,7 +111,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
                     { label: 'Toplam Alış', value: totalPurchases, icon: 'shopping_bag', color: 'text-amber-400', bgIcon: 'text-amber-500' },
                     { label: 'Toplam Tutar', value: fp(totalAmount), icon: 'payments', color: 'text-blue-400', bgIcon: 'text-blue-500' },
@@ -135,7 +135,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
 
             {/* Table */}
             <div className="bg-surface-dark border border-slate-700/50 rounded-xl overflow-hidden">
-                <table className="w-full text-left">
+                <table className="w-full text-left min-w-[800px]">
                     <thead><tr className="bg-slate-800/50 border-b border-slate-700 text-xs uppercase text-slate-400 font-semibold tracking-wider">
                         <th className="p-4">Fatura No</th><th className="p-4">Tedarikçi</th><th className="p-4">Tarih</th>
                         <th className="p-4 text-right">Tutar</th><th className="p-4 text-right">Kalan</th><th className="p-4">Durum</th><th className="p-4 text-center">İşlemler</th>
@@ -170,13 +170,13 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
             {/* New Purchase Modal */}
             {showModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-fade-in" onClick={e => e.stopPropagation()}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-4xl max-h-[90vh] overflow-y-auto animate-fade-in" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between p-6 border-b border-slate-700">
                             <h3 className="text-lg font-bold text-white">Yeni Alış</h3>
                             <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
                         </div>
                         <div className="p-6 space-y-4">
-                            <div className="grid grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Tedarikçi *</label>
                                     <select value={supplierId} onChange={e => setSupplierId(e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-amber-500 outline-none">
                                         <option value="">Seçin...</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -220,7 +220,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
                             </div>
 
                             {/* Totals */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-medium text-slate-300 mb-1">Notlar</label>
                                     <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-amber-500 outline-none resize-none" /></div>
                                 <div className="space-y-2">
