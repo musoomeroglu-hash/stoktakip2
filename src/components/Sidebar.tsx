@@ -18,6 +18,7 @@ const menuItems = [
     { id: 'purchases', label: 'Alışlar', icon: 'shopping_bag' },
     { id: 'expenses', label: 'Giderler', icon: 'trending_down' },
     { id: 'suppliers', label: 'Tedarikçiler', icon: 'store' },
+    { id: 'reminders', label: 'Hatırlatıcılar', icon: 'notifications_active' },
 ];
 
 export default function Sidebar({ activeView, onViewChange, onLogout, isOpen, onClose }: SidebarProps) {

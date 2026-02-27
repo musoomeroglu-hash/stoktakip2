@@ -380,3 +380,68 @@ export async function saveCustomer(c: Partial<Customer>) {
 export async function deleteCustomer(id: string) {
     return dbFetch(`/customers?id=eq.${id}`, { method: 'DELETE' });
 }
+
+// ── Reminder API ──────────────────────────────────────────────────
+import type { Reminder } from '../pages/RemindersPage';
+
+function reminderFromDb(row: Record<string, unknown>): Reminder {
+    return {
+        id: row.id as string,
+        title: row.title as string,
+        description: (row.description as string) || '',
+        remindAt: row.remind_at as string,
+        repeatType: (row.repeat_type as Reminder['repeatType']) || 'none',
+        phoneNumber: (row.phone_number as string) || '',
+        isSent: (row.is_sent as boolean) || false,
+        isCompleted: (row.is_completed as boolean) || false,
+        priority: (row.priority as Reminder['priority']) || 'medium',
+        category: (row.category as string) || 'genel',
+        createdAt: row.created_at as string,
+    };
+}
+
+function reminderToDb(r: Partial<Reminder>): Record<string, unknown> {
+    const obj: Record<string, unknown> = {};
+    if (r.title !== undefined) obj.title = r.title;
+    if (r.description !== undefined) obj.description = r.description;
+    if (r.remindAt !== undefined) obj.remind_at = new Date(r.remindAt).toISOString();
+    if (r.repeatType !== undefined) obj.repeat_type = r.repeatType;
+    if (r.phoneNumber !== undefined) obj.phone_number = r.phoneNumber;
+    if (r.isSent !== undefined) obj.is_sent = r.isSent;
+    if (r.isCompleted !== undefined) obj.is_completed = r.isCompleted;
+    if (r.priority !== undefined) obj.priority = r.priority;
+    if (r.category !== undefined) obj.category = r.category;
+    return obj;
+}
+
+export async function getReminders(): Promise<Reminder[]> {
+    const data = await dbFetch('/reminders?order=remind_at.asc');
+    return (data || []).map(reminderFromDb);
+}
+
+export async function createReminder(r: Partial<Reminder>): Promise<Reminder> {
+    const data = await dbFetch('/reminders', {
+        method: 'POST',
+        body: JSON.stringify(reminderToDb(r)),
+    });
+    return reminderFromDb(Array.isArray(data) ? data[0] : data);
+}
+
+export async function updateReminder(id: string, r: Partial<Reminder>): Promise<Reminder> {
+    const data = await dbFetch(`/reminders?id=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(reminderToDb(r)),
+    });
+    return reminderFromDb(Array.isArray(data) ? data[0] : data);
+}
+
+export async function deleteReminder(id: string): Promise<void> {
+    await dbFetch(`/reminders?id=eq.${id}`, { method: 'DELETE' });
+}
+
+export async function markReminderSent(id: string): Promise<void> {
+    await dbFetch(`/reminders?id=eq.${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_sent: true }),
+    });
+}

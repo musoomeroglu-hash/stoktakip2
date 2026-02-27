@@ -14,6 +14,7 @@ import PurchasesPage from './pages/PurchasesPage';
 import ExpensesPage from './pages/ExpensesPage';
 import SuppliersPage from './pages/SuppliersPage';
 import CustomersPage from './pages/CustomersPage';
+import RemindersPage from './pages/RemindersPage';
 import type { Category, Product, Sale, RepairRecord, PhoneSale, PhoneStock, Expense, CustomerRequest, Supplier, Purchase, Customer } from './types';
 import * as api from './utils/api';
 
@@ -21,6 +22,7 @@ const viewLabels: Record<string, string> = {
   sales: 'Satış & Raporlar', products: 'Ürünler', repairs: 'Tamir Kayıtları',
   phoneSales: 'Telefon Satışları', customers: 'Müşteriler', analytics: 'Analizler', requests: 'İstek & Siparişler',
   calculator: 'Hesap Makinası', purchases: 'Alışlar', expenses: 'Giderler', suppliers: 'Tedarikçiler',
+  reminders: 'Hatırlatıcılar',
 };
 
 export default function App() {
@@ -107,6 +109,7 @@ export default function App() {
       case 'purchases': return <PurchasesPage purchases={purchases} suppliers={suppliers} products={products} setPurchases={setPurchases} onRefresh={loadAllData} />;
       case 'expenses': return <ExpensesPage expenses={expenses} setExpenses={setExpenses} />;
       case 'suppliers': return <SuppliersPage suppliers={suppliers} setSuppliers={setSuppliers} repairs={repairs} />;
+      case 'reminders': return <RemindersPage />;
       default: return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} setSales={setSales} onRefresh={loadAllData} customers={customers} setCustomers={setCustomers} />;
     }
   };
