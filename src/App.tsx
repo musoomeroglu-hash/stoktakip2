@@ -96,18 +96,18 @@ export default function App() {
     }
 
     switch (activeView) {
-      case 'sales': return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} categories={categories} setSales={setSales} onRefresh={loadAllData} customers={customers} setCustomers={setCustomers} />;
+      case 'sales': return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} setSales={setSales} onRefresh={loadAllData} customers={customers} setCustomers={setCustomers} />;
       case 'products': return <ProductsPage products={products} categories={categories} setProducts={setProducts} setCategories={setCategories} />;
       case 'repairs': return <RepairsPage repairs={repairs} setRepairs={setRepairs} suppliers={suppliers} customers={customers} setCustomers={setCustomers} />;
       case 'phoneSales': return <PhoneSalesPage phoneStocks={phoneStocks} phoneSales={phoneSales} setPhoneStocks={setPhoneStocks} setPhoneSales={setPhoneSales} customers={customers} setCustomers={setCustomers} />;
       case 'customers': return <CustomersPage repairs={repairs} phoneSales={phoneSales} sales={sales} customers={customers} setCustomers={setCustomers} />;
-      case 'analytics': return <AnalyticsPage sales={sales} repairs={repairs} phoneSales={phoneSales} expenses={expenses} products={products} />;
+      case 'analytics': return <AnalyticsPage sales={sales} repairs={repairs} phoneSales={phoneSales} expenses={expenses} />;
       case 'requests': return <RequestsPage requests={requests} setRequests={setRequests} />;
       case 'calculator': return <CalculatorPage />;
-      case 'purchases': return <PurchasesPage purchases={purchases} suppliers={suppliers} products={products} setPurchases={setPurchases} setProducts={setProducts} onRefresh={loadAllData} />;
+      case 'purchases': return <PurchasesPage purchases={purchases} suppliers={suppliers} products={products} setPurchases={setPurchases} onRefresh={loadAllData} />;
       case 'expenses': return <ExpensesPage expenses={expenses} setExpenses={setExpenses} />;
       case 'suppliers': return <SuppliersPage suppliers={suppliers} setSuppliers={setSuppliers} repairs={repairs} />;
-      default: return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} categories={categories} setSales={setSales} onRefresh={loadAllData} customers={customers} setCustomers={setCustomers} />;
+      default: return <SalesPage sales={sales} repairs={repairs} phoneSales={phoneSales} suppliers={suppliers} products={products} setSales={setSales} onRefresh={loadAllData} customers={customers} setCustomers={setCustomers} />;
     }
   };
 

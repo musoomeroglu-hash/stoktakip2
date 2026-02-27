@@ -1,18 +1,9 @@
 import { useState, useMemo } from 'react';
 import type { Purchase, Supplier, Product } from '../types';
-import { formatDate, getPurchaseStatusInfo, generateId } from '../utils/helpers';
+import { formatDate, getPurchaseStatusInfo } from '../utils/helpers';
 import { useFormatPrice } from '../components/PriceVisibility';
 import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
-
-interface PurchasesPageProps {
-    purchases: Purchase[];
-    suppliers: Supplier[];
-    products: Product[];
-    setPurchases: (p: Purchase[]) => void;
-    setProducts: (p: Product[]) => void;
-    onRefresh: () => void;
-}
 
 interface CartItem {
     productId: string;
@@ -21,7 +12,9 @@ interface CartItem {
     unitCost: number;
 }
 
-export default function PurchasesPage({ purchases, suppliers, products, setPurchases, setProducts, onRefresh }: PurchasesPageProps) {
+export default function PurchasesPage({ purchases, suppliers, products, setPurchases, onRefresh }: {
+    purchases: Purchase[]; suppliers: Supplier[]; products: Product[]; setPurchases: (p: Purchase[]) => void; onRefresh: () => void;
+}) {
     const fp = useFormatPrice();
     const { showToast } = useToast();
     const [showModal, setShowModal] = useState(false);
@@ -29,7 +22,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
 
     // Form
     const [supplierId, setSupplierId] = useState('');
-    const [invoiceNumber, setInvoiceNumber] = useState(`FTR-${new Date().getFullYear()}-${String(purchases.length + 1).padStart(3, '0')}`);
+    const [invoiceNumber, setInvoiceNumber] = useState(`FTR - ${new Date().getFullYear()} -${String(purchases.length + 1).padStart(3, '0')} `);
     const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
     const [paymentMethod, setPaymentMethod] = useState('nakit');
     const [discount, setDiscount] = useState(0);
@@ -57,7 +50,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
             const prod = products.find(p => p.id === value);
             if (prod) items[idx] = { ...items[idx], productId: prod.id, productName: prod.name, unitCost: prod.purchasePrice };
         } else {
-            (items[idx] as Record<string, unknown>)[field] = value;
+            (items[idx] as any)[field] = value;
         }
         setCartItems(items);
     };
@@ -73,7 +66,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
             const result = await api.savePurchase(purchaseData);
             if (result?.id) {
                 const items = cartItems.map(i => ({
-                    purchaseId: result.id, productId: i.productId,
+                    purchaseId: result.id as string, productId: i.productId,
                     quantity: i.quantity, unitCost: i.unitCost, totalCost: i.quantity * i.unitCost
                 }));
                 await api.savePurchaseItems(items);
@@ -118,7 +111,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
                     { label: 'Ödenmemiş', value: fp(unpaidAmount), icon: 'pending', color: 'text-red-400', bgIcon: 'text-red-500' },
                 ].map(card => (
                     <div key={card.label} className="glass-panel p-5 rounded-xl flex flex-col justify-between h-32 relative overflow-hidden">
-                        <div className="absolute right-0 top-0 p-4 opacity-10"><span className={`material-symbols-outlined text-6xl ${card.bgIcon}`}>{card.icon}</span></div>
+                        <div className="absolute right-0 top-0 p-4 opacity-10"><span className={`material - symbols - outlined text - 6xl ${card.bgIcon} `}>{card.icon}</span></div>
                         <div><p className="text-slate-400 text-sm mb-1">{card.label}</p><h3 className="text-2xl font-bold text-white">{card.value}</h3></div>
                     </div>
                 ))}
@@ -154,7 +147,7 @@ export default function PurchasesPage({ purchases, suppliers, products, setPurch
                                     <td className="p-4 text-slate-300">{p.purchaseDate ? formatDate(p.purchaseDate) : '—'}</td>
                                     <td className="p-4 text-right font-medium text-white">{fp(p.total || 0)}</td>
                                     <td className="p-4 text-right font-medium text-red-400">{fp(p.remaining || 0)}</td>
-                                    <td className="p-4"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span></td>
+                                    <td className="p-4"><span className={`px - 2.5 py - 1 rounded - full text - xs font - medium ${st.color} `}>{st.label}</span></td>
                                     <td className="p-4 text-center">
                                         <button onClick={() => handleDelete(p.id)} className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-400">
                                             <span className="material-symbols-outlined text-lg">delete</span>

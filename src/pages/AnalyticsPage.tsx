@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
-import type { Sale, RepairRecord, PhoneSale, Expense, Product } from '../types';
+import type { Sale, RepairRecord, PhoneSale, Expense } from '../types';
 import { useFormatPrice } from '../components/PriceVisibility';
 
 interface AnalyticsPageProps {
@@ -8,12 +8,11 @@ interface AnalyticsPageProps {
     repairs: RepairRecord[];
     phoneSales: PhoneSale[];
     expenses: Expense[];
-    products: Product[];
 }
 
 const COLORS = ['#f42559', '#4144f1', '#25e2f4', '#2aef8c', '#f4ab25', '#a855f7', '#ec4899', '#f97316'];
 
-export default function AnalyticsPage({ sales, repairs, phoneSales, expenses, products }: AnalyticsPageProps) {
+export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: AnalyticsPageProps) {
     const fp = useFormatPrice();
 
     // Date filter state
@@ -196,7 +195,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses, pr
                         <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `₺${(v / 1000).toFixed(0)}k`} />
                         <Tooltip
                             contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(value: number, name: string) => [fp(value), name === 'revenue' ? 'Gelir' : name === 'profit' ? 'Kâr' : 'Gider']}
+                            formatter={(value: number | undefined) => value !== undefined ? [fp(value), ""] : ["0", ""]}
                         />
                         <Line type="monotone" dataKey="revenue" stroke="#4144f1" strokeWidth={2} dot={false} name="revenue" />
                         <Line type="monotone" dataKey="profit" stroke="#2aef8c" strokeWidth={2} dot={false} name="profit" />
@@ -217,7 +216,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses, pr
                                 <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} />
                                 <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={v => `₺${(v / 1000).toFixed(0)}k`} />
                                 <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }}
-                                    formatter={(value: number) => [fp(value), 'Satış']} />
+                                    formatter={(value: number | undefined) => value !== undefined ? [value.toString(), 'Satış'] : ['0', 'Satış']} />
                                 <Bar dataKey="value" fill="#f42559" radius={[4, 4, 0, 0]} />
                             </BarChart>
                         </ResponsiveContainer>

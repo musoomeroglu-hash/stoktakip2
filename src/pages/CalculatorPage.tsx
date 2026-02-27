@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { formatCurrency } from '../utils/helpers';
 import { useFormatPrice } from '../components/PriceVisibility';
 
 type CalcTab = 'standard' | 'profit' | 'vat';

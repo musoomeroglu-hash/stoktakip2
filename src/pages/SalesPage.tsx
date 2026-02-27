@@ -57,7 +57,6 @@ interface SalesPageProps {
     phoneSales: PhoneSale[];
     suppliers: Supplier[];
     products: import('../types').Product[];
-    categories: import('../types').Category[];
     setSales: (s: Sale[]) => void;
     onRefresh: () => void;
     customers: Customer[];
@@ -67,7 +66,7 @@ interface SalesPageProps {
 type PeriodFilter = 'thisMonth' | 'lastMonth' | 'all' | 'custom';
 type TabType = 'sales' | 'repairs' | 'phoneSales' | 'profitLoss';
 
-export default function SalesPage({ sales, repairs, phoneSales, suppliers, products, categories, setSales, onRefresh, customers, setCustomers }: SalesPageProps) {
+export default function SalesPage({ sales, repairs, phoneSales, suppliers, products, setSales, onRefresh, customers, setCustomers }: SalesPageProps) {
     const { showToast } = useToast();
     const fp = useFormatPrice();
     const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
