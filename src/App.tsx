@@ -46,12 +46,18 @@ export default function App() {
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      // Phase 1: Critical data — unblock UI as fast as possible
-      await Promise.allSettled([
-        api.getCategories().then(setCategories),
-        api.getProducts().then(setProducts),
-        api.getSales().then(setSales),
+      // Phase 1: Critical data — race against a 10s safety timeout
+      const timeout = new Promise(r => setTimeout(r, 10000));
+      await Promise.race([
+        Promise.allSettled([
+          api.getCategories().then(setCategories),
+          api.getProducts().then(setProducts),
+          api.getSales().then(setSales),
+        ]),
+        timeout,
       ]);
+    } catch (e) {
+      console.warn('Phase 1 load error:', e);
     } finally {
       setLoading(false);
     }
