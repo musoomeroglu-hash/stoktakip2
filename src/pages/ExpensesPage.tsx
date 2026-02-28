@@ -272,64 +272,59 @@ export default function ExpensesPage({ expenses, setExpenses }: ExpensesPageProp
                         </table>
                     </div>
                 </div>
-
                 {/* Right - Charts 30% */}
                 <div className="flex-[3] space-y-4">
-                    {/* Pie Chart */}
+                    {/* Donut Chart */}
                     {catBreakdown.length > 0 && (
-                        <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-4">
-                            <h4 className="text-sm font-semibold text-white mb-4">Kategori Dağılımı</h4>
-                            <div className="flex justify-center mb-4">
-                                <svg width="200" height="200" viewBox="-100 -100 200 200">
-                                    {(() => {
-                                        const total = catBreakdown.reduce((s, [, a]) => s + a, 0);
-                                        let cumAngle = -90;
-                                        return catBreakdown.map(([cat, amount], idx) => {
-                                            const pct = amount / total;
-                                            const angle = pct * 360;
-                                            const startAngle = cumAngle;
-                                            cumAngle += angle;
-                                            const midAngle = (startAngle + angle / 2) * (Math.PI / 180);
-                                            const startRad = startAngle * (Math.PI / 180);
-                                            const endRad = (startAngle + angle) * (Math.PI / 180);
-                                            const x1 = Math.cos(startRad) * 85;
-                                            const y1 = Math.sin(startRad) * 85;
-                                            const x2 = Math.cos(endRad) * 85;
-                                            const y2 = Math.sin(endRad) * 85;
-                                            const largeArc = angle > 180 ? 1 : 0;
-                                            const labelR = pct > 0.06 ? 55 : 95;
-                                            const lx = Math.cos(midAngle) * labelR;
-                                            const ly = Math.sin(midAngle) * labelR;
-                                            const color = pieColors[idx % pieColors.length];
-                                            return (
-                                                <g key={cat}>
+                        <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-6">
+                            <h4 className="text-sm font-semibold text-white mb-6">Kategori Dağılımı</h4>
+                            <div className="flex flex-col sm:flex-row items-center gap-8">
+                                <div className="relative w-48 h-48 flex-shrink-0">
+                                    <svg width="100%" height="100%" viewBox="-100 -100 200 200" className="transform -rotate-90">
+                                        {(() => {
+                                            const total = catBreakdown.reduce((s, [, a]) => s + a, 0);
+                                            let cumAngle = 0;
+                                            return catBreakdown.map(([cat, amount], idx) => {
+                                                const pct = amount / total;
+                                                const angle = pct * 360;
+                                                // Make sure we don't draw exactly 360 which vanishes in SVG arcs
+                                                const drawAngle = angle > 359.9 ? 359.9 : angle;
+                                                const startRad = cumAngle * (Math.PI / 180);
+                                                const endRad = (cumAngle + drawAngle) * (Math.PI / 180);
+                                                cumAngle += angle;
+
+                                                const r = 70; // radius of the ring center
+                                                const x1 = Math.cos(startRad) * r;
+                                                const y1 = Math.sin(startRad) * r;
+                                                const x2 = Math.cos(endRad) * r;
+                                                const y2 = Math.sin(endRad) * r;
+                                                const largeArc = drawAngle > 180 ? 1 : 0;
+                                                const color = pieColors[idx % pieColors.length];
+
+                                                return (
                                                     <path
-                                                        d={`M 0 0 L ${x1} ${y1} A 85 85 0 ${largeArc} 1 ${x2} ${y2} Z`}
-                                                        fill={color} stroke="#1e293b" strokeWidth="2"
-                                                        className="transition-opacity hover:opacity-80 cursor-pointer"
+                                                        key={cat}
+                                                        d={`M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`}
+                                                        fill="none"
+                                                        stroke={color}
+                                                        strokeWidth="35"
+                                                        className="transition-all hover:opacity-80 hover:stroke-[40] cursor-pointer"
                                                     />
-                                                    {pct > 0.04 && (
-                                                        <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
-                                                            fill="white" fontSize="9" fontWeight="600"
-                                                            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
-                                                            {`${(pct * 100).toFixed(0)}%`}
-                                                        </text>
-                                                    )}
-                                                </g>
-                                            );
-                                        });
-                                    })()}
-                                </svg>
-                            </div>
-                            {/* Legend */}
-                            <div className="grid grid-cols-2 gap-1.5">
-                                {catBreakdown.map(([cat, amount], idx) => (
-                                    <div key={cat} className="flex items-center gap-1.5 text-xs">
-                                        <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pieColors[idx % pieColors.length] }}></div>
-                                        <span className="text-slate-300 truncate">{cat}</span>
-                                        <span className="text-white font-medium ml-auto">{fp(amount)}</span>
-                                    </div>
-                                ))}
+                                                );
+                                            });
+                                        })()}
+                                    </svg>
+                                </div>
+                                {/* Legend */}
+                                <div className="flex flex-col gap-3 flex-1 w-full relative z-10">
+                                    {catBreakdown.map(([cat, amount], idx) => (
+                                        <div key={cat} className="flex items-center gap-3 text-sm">
+                                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: pieColors[idx % pieColors.length] }}></div>
+                                            <span className="text-slate-300 font-medium">{cat}</span>
+                                            <span className="text-white font-bold ml-auto">{fp(amount)}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -357,46 +352,48 @@ export default function ExpensesPage({ expenses, setExpenses }: ExpensesPageProp
             </div>
 
             {/* Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
-                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-md animate-fade-in" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                            <h3 className="text-lg font-bold text-white">{editing ? 'Gider Düzenle' : 'Yeni Gider'}</h3>
-                            <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <div><label className="block text-sm font-medium text-slate-300 mb-1">Gider Adı *</label>
-                                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none" /></div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium text-slate-300 mb-1">Kategori</label>
-                                    <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
-                                        {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                                    </select></div>
-                                <div><label className="block text-sm font-medium text-slate-300 mb-1">Tutar *</label>
-                                    <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none" /></div>
+            {
+                showModal && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
+                        <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-md animate-fade-in" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                                <h3 className="text-lg font-bold text-white">{editing ? 'Gider Düzenle' : 'Yeni Gider'}</h3>
+                                <button onClick={() => setShowModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
                             </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium text-slate-300 mb-1">Ödeme Yöntemi</label>
-                                    <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
-                                        <option value="nakit">Nakit</option><option value="havale">Havale</option><option value="kart">Kart</option>
-                                    </select></div>
-                                <div><label className="block text-sm font-medium text-slate-300 mb-1">Durum</label>
-                                    <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Expense['status'] })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
-                                        <option value="odendi">Ödendi</option><option value="bekliyor">Bekliyor</option>
-                                    </select></div>
+                            <div className="p-6 space-y-4">
+                                <div><label className="block text-sm font-medium text-slate-300 mb-1">Gider Adı *</label>
+                                    <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none" /></div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label className="block text-sm font-medium text-slate-300 mb-1">Kategori</label>
+                                        <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
+                                            {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select></div>
+                                    <div><label className="block text-sm font-medium text-slate-300 mb-1">Tutar *</label>
+                                        <input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: Number(e.target.value) })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none" /></div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div><label className="block text-sm font-medium text-slate-300 mb-1">Ödeme Yöntemi</label>
+                                        <select value={form.paymentMethod} onChange={e => setForm({ ...form, paymentMethod: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
+                                            <option value="nakit">Nakit</option><option value="havale">Havale</option><option value="kart">Kart</option>
+                                        </select></div>
+                                    <div><label className="block text-sm font-medium text-slate-300 mb-1">Durum</label>
+                                        <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Expense['status'] })} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-red-500 outline-none">
+                                            <option value="odendi">Ödendi</option><option value="bekliyor">Bekliyor</option>
+                                        </select></div>
+                                </div>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={form.isRecurring} onChange={e => setForm({ ...form, isRecurring: e.target.checked })} className="rounded border-slate-600 bg-slate-700 text-red-500" />
+                                    <span className="text-sm text-slate-300">Düzenli gider</span>
+                                </label>
                             </div>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={form.isRecurring} onChange={e => setForm({ ...form, isRecurring: e.target.checked })} className="rounded border-slate-600 bg-slate-700 text-red-500" />
-                                <span className="text-sm text-slate-300">Düzenli gider</span>
-                            </label>
-                        </div>
-                        <div className="flex justify-end gap-3 p-6 border-t border-slate-700">
-                            <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-300 hover:bg-surface-hover rounded-lg">İptal</button>
-                            <button onClick={handleSave} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-red-500/25">Kaydet</button>
+                            <div className="flex justify-end gap-3 p-6 border-t border-slate-700">
+                                <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm text-slate-300 hover:bg-surface-hover rounded-lg">İptal</button>
+                                <button onClick={handleSave} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-red-500/25">Kaydet</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
