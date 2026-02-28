@@ -4,6 +4,11 @@ interface SidebarProps {
     onLogout: () => void;
     isOpen?: boolean;
     onClose?: () => void;
+    // Mobile Settings Props
+    priceVisible: boolean;
+    togglePrice: () => void;
+    currency: 'TRY' | 'USD';
+    setCurrency: (c: 'TRY' | 'USD') => void;
 }
 
 const menuItems = [
@@ -21,7 +26,10 @@ const menuItems = [
     { id: 'reminders', label: 'Hatırlatıcılar', icon: 'notifications_active' },
 ];
 
-export default function Sidebar({ activeView, onViewChange, onLogout, isOpen, onClose }: SidebarProps) {
+export default function Sidebar({
+    activeView, onViewChange, onLogout, isOpen, onClose,
+    priceVisible, togglePrice, currency, setCurrency
+}: SidebarProps) {
     return (
         <>
             {/* Mobile Menu Backdrop */}
@@ -69,8 +77,43 @@ export default function Sidebar({ activeView, onViewChange, onLogout, isOpen, on
                     ))}
                 </nav>
 
-                {/* User section */}
-                <div className="p-4 border-t border-slate-800">
+                {/* User section & Settings */}
+                <div className="p-4 border-t border-slate-800 space-y-4">
+                    {/* Settings for Mobile */}
+                    <div className="md:hidden space-y-3 px-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hızlı Ayarlar</p>
+
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-surface-hover/50 border border-slate-800">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm text-slate-400">{priceVisible ? 'visibility' : 'visibility_off'}</span>
+                                <span className="text-xs text-slate-300">Fiyat Görünürlüğü</span>
+                            </div>
+                            <button
+                                onClick={togglePrice}
+                                className={`w-8 h-4 rounded-full relative transition-colors ${priceVisible ? 'bg-primary' : 'bg-slate-700'}`}
+                            >
+                                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${priceVisible ? 'left-4' : 'left-1'}`}></div>
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 rounded-xl bg-surface-hover/50 border border-slate-800">
+                            <div className="flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm text-slate-400">payments</span>
+                                <span className="text-xs text-slate-300">Para Birimi</span>
+                            </div>
+                            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                <button
+                                    onClick={() => setCurrency('TRY')}
+                                    className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${currency === 'TRY' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400'}`}
+                                >TL</button>
+                                <button
+                                    onClick={() => setCurrency('USD')}
+                                    className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all ${currency === 'USD' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400'}`}
+                                >USD</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div
                         onClick={onLogout}
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-hover cursor-pointer transition-colors"

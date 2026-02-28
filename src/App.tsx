@@ -147,6 +147,10 @@ function AppShell({ activeView, onViewChange, onLogout, renderView }: { activeVi
         onLogout={onLogout}
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
+        priceVisible={visible}
+        togglePrice={toggle}
+        currency={currency}
+        setCurrency={setCurrency}
       />
       <main className="flex-1 flex flex-col h-screen overflow-hidden overflow-x-hidden">
         {/* Header */}
@@ -154,13 +158,15 @@ function AppShell({ activeView, onViewChange, onLogout, renderView }: { activeVi
           <div className="flex items-center gap-2 md:gap-3 text-sm">
             <button
               onClick={() => setIsMobileMenuOpen(true)}
-              className="md:hidden w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:bg-surface-hover hover:text-white transition-colors"
+              className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary border border-primary/20 transition-all hover:bg-primary/20 active:scale-90"
             >
-              <span className="material-symbols-outlined">menu</span>
+              <span className="material-symbols-outlined font-bold">menu</span>
             </button>
-            <span className="hidden sm:inline text-slate-400">StokTakip Pro</span>
-            <span className="hidden sm:inline text-slate-600">/</span>
-            <span className="font-medium text-white truncate max-w-[150px] sm:max-w-none">{viewLabels[activeView] || activeView}</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <span className="hidden sm:inline text-slate-400 font-medium">StokTakip Pro</span>
+              <span className="hidden sm:inline text-slate-600">/</span>
+              <span className="font-bold text-white text-base truncate max-w-[120px] xs:max-w-[180px] sm:max-w-none">{viewLabels[activeView] || activeView}</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {/* Theme Toggle */}
@@ -173,34 +179,37 @@ function AppShell({ activeView, onViewChange, onLogout, renderView }: { activeVi
                 {isLight ? 'dark_mode' : 'light_mode'}
               </span>
             </button>
-            {/* Currency Toggle */}
-            <div className="flex items-center gap-1.5">
-              <div className="flex bg-slate-800 rounded-full p-0.5 border border-slate-700">
-                <button
-                  onClick={() => setCurrency('TRY')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currency === 'TRY' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                >₺ TL</button>
-                <button
-                  onClick={() => setCurrency('USD')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currency === 'USD' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-                >$ USD</button>
+            {/* Desktop Toggles */}
+            <div className="hidden lg:flex items-center gap-2">
+              {/* Currency Toggle */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex bg-slate-800 rounded-full p-0.5 border border-slate-700">
+                  <button
+                    onClick={() => setCurrency('TRY')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currency === 'TRY' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  >₺ TL</button>
+                  <button
+                    onClick={() => setCurrency('USD')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${currency === 'USD' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+                  >$ USD</button>
+                </div>
+                {usdRate > 0 && (
+                  <span className="hidden xl:inline-block text-xs text-slate-400 bg-slate-800/80 border border-slate-700 rounded-full px-3 py-1.5 whitespace-nowrap">
+                    {rateLoading ? '...' : `$1.00 = ₺${usdRate.toFixed(2).replace('.', ',')}`}
+                  </span>
+                )}
               </div>
-              {usdRate > 0 && (
-                <span className="hidden md:inline-block text-xs text-slate-400 bg-slate-800/80 border border-slate-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                  {rateLoading ? '...' : `$1.00 = ₺${usdRate.toFixed(2).replace('.', ',')}`}
-                </span>
-              )}
+              <button
+                onClick={toggle}
+                title={visible ? 'Fiyatları Gizle' : 'Fiyatları Göster'}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${visible
+                  ? 'text-slate-400 hover:bg-surface-hover hover:text-white'
+                  : 'text-primary bg-primary/10 ring-1 ring-primary/30'
+                  }`}
+              >
+                <span className="material-symbols-outlined text-xl">{visible ? 'visibility' : 'visibility_off'}</span>
+              </button>
             </div>
-            <button
-              onClick={toggle}
-              title={visible ? 'Fiyatları Gizle' : 'Fiyatları Göster'}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${visible
-                ? 'text-slate-400 hover:bg-surface-hover hover:text-white'
-                : 'text-primary bg-primary/10 ring-1 ring-primary/30'
-                }`}
-            >
-              <span className="material-symbols-outlined text-xl">{visible ? 'visibility' : 'visibility_off'}</span>
-            </button>
             <button className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:bg-surface-hover transition-colors">
               <span className="material-symbols-outlined text-xl">notifications</span>
             </button>
