@@ -46,25 +46,31 @@ export default function App() {
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const results = await Promise.allSettled([
+      // Phase 1: Critical data — unblock UI as fast as possible
+      await Promise.allSettled([
         api.getCategories().then(setCategories),
         api.getProducts().then(setProducts),
         api.getSales().then(setSales),
-        api.getRepairs().then(setRepairs),
-        api.getPhoneSales().then(setPhoneSales),
-        api.getPhoneStocks().then(setPhoneStocks),
-        api.getExpenses().then(setExpenses),
-        api.getCustomerRequests().then(setRequests),
-        api.getSuppliers().then(setSuppliers),
-        api.getPurchases().then(setPurchases),
-        api.getCustomers().then(setCustomers).catch(() => { }),
       ]);
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') console.warn(`Data load ${i} failed:`, r.reason);
-      });
     } finally {
       setLoading(false);
     }
+
+    // Phase 2: Secondary data — load in background (no spinner)
+    Promise.allSettled([
+      api.getRepairs().then(setRepairs),
+      api.getPhoneSales().then(setPhoneSales),
+      api.getPhoneStocks().then(setPhoneStocks),
+      api.getExpenses().then(setExpenses),
+      api.getCustomerRequests().then(setRequests),
+      api.getSuppliers().then(setSuppliers),
+      api.getPurchases().then(setPurchases),
+      api.getCustomers().then(setCustomers).catch(() => { }),
+    ]).then(results => {
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn(`Background load ${i} failed:`, r.reason);
+      });
+    });
   }, []);
 
   useEffect(() => {
