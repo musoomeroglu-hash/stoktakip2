@@ -78,7 +78,8 @@ export default function CalculatorPage() {
     // Profit calculation
     const grossProfit = salePrice - purchasePrice;
     const margin = purchasePrice > 0 ? (grossProfit / purchasePrice) * 100 : 0;
-    const vatFromSale = salePrice > 0 ? (salePrice * vatRate) / (100 + vatRate) : 0;
+    // KDV = satış fiyatı üzerinden hesaplanır (fiyat KDV hariç girilir)
+    const vatFromSale = salePrice > 0 ? salePrice * vatRate / 100 : 0;
     const netProfit = grossProfit - vatFromSale;
 
     // VAT calculation

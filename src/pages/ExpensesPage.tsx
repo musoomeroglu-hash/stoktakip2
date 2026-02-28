@@ -119,6 +119,9 @@ export default function ExpensesPage({ expenses, setExpenses }: ExpensesPageProp
 
     const maxCatAmount = catBreakdown.length > 0 ? catBreakdown[0][1] : 1;
 
+    // Pie chart colors
+    const pieColors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#8b5cf6', '#ec4899', '#64748b', '#14b8a6'];
+
     const openCreate = () => {
         setEditing(null);
         setForm({ name: '', category: 'Diğer', amount: 0, paymentMethod: 'nakit', isRecurring: false, status: 'odendi' });
@@ -272,8 +275,68 @@ export default function ExpensesPage({ expenses, setExpenses }: ExpensesPageProp
 
                 {/* Right - Charts 30% */}
                 <div className="flex-[3] space-y-4">
+                    {/* Pie Chart */}
+                    {catBreakdown.length > 0 && (
+                        <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-4">
+                            <h4 className="text-sm font-semibold text-white mb-4">Kategori Dağılımı</h4>
+                            <div className="flex justify-center mb-4">
+                                <svg width="200" height="200" viewBox="-100 -100 200 200">
+                                    {(() => {
+                                        const total = catBreakdown.reduce((s, [, a]) => s + a, 0);
+                                        let cumAngle = -90;
+                                        return catBreakdown.map(([cat, amount], idx) => {
+                                            const pct = amount / total;
+                                            const angle = pct * 360;
+                                            const startAngle = cumAngle;
+                                            cumAngle += angle;
+                                            const midAngle = (startAngle + angle / 2) * (Math.PI / 180);
+                                            const startRad = startAngle * (Math.PI / 180);
+                                            const endRad = (startAngle + angle) * (Math.PI / 180);
+                                            const x1 = Math.cos(startRad) * 85;
+                                            const y1 = Math.sin(startRad) * 85;
+                                            const x2 = Math.cos(endRad) * 85;
+                                            const y2 = Math.sin(endRad) * 85;
+                                            const largeArc = angle > 180 ? 1 : 0;
+                                            const labelR = pct > 0.06 ? 55 : 95;
+                                            const lx = Math.cos(midAngle) * labelR;
+                                            const ly = Math.sin(midAngle) * labelR;
+                                            const color = pieColors[idx % pieColors.length];
+                                            return (
+                                                <g key={cat}>
+                                                    <path
+                                                        d={`M 0 0 L ${x1} ${y1} A 85 85 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                                                        fill={color} stroke="#1e293b" strokeWidth="2"
+                                                        className="transition-opacity hover:opacity-80 cursor-pointer"
+                                                    />
+                                                    {pct > 0.04 && (
+                                                        <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
+                                                            fill="white" fontSize="9" fontWeight="600"
+                                                            style={{ textShadow: '0 1px 3px rgba(0,0,0,0.8)' }}>
+                                                            {`${(pct * 100).toFixed(0)}%`}
+                                                        </text>
+                                                    )}
+                                                </g>
+                                            );
+                                        });
+                                    })()}
+                                </svg>
+                            </div>
+                            {/* Legend */}
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {catBreakdown.map(([cat, amount], idx) => (
+                                    <div key={cat} className="flex items-center gap-1.5 text-xs">
+                                        <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: pieColors[idx % pieColors.length] }}></div>
+                                        <span className="text-slate-300 truncate">{cat}</span>
+                                        <span className="text-white font-medium ml-auto">{fp(amount)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bar Breakdown */}
                     <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-4">
-                        <h4 className="text-sm font-semibold text-white mb-4">Kategori Dağılımı</h4>
+                        <h4 className="text-sm font-semibold text-white mb-4">Detaylı Dağılım</h4>
                         <div className="space-y-3">
                             {catBreakdown.map(([cat, amount]) => (
                                 <div key={cat}>
