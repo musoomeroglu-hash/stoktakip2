@@ -163,7 +163,6 @@ export default function SalesPage({ sales, repairs, phoneSales, suppliers, produ
     const handleSaveSale = async () => {
         if (saleItems.length === 0) { showToast('En az bir ürün ekleyin!', 'error'); return; }
         try {
-            const id = Date.now().toString();
             const items = saleItems.map(i => ({
                 ...i,
                 profit: (i.salePrice - i.purchasePrice) * i.quantity
@@ -171,7 +170,7 @@ export default function SalesPage({ sales, repairs, phoneSales, suppliers, produ
             const totalPrice = items.reduce((s, i) => s + i.salePrice * i.quantity, 0);
             const totalProfit = items.reduce((s, i) => s + i.profit, 0);
             const sale: Sale = {
-                id, items, totalPrice, totalProfit,
+                id: '', items, totalPrice, totalProfit,
                 date: new Date().toISOString(),
                 paymentMethod: salePaymentMethod,
                 paymentDetails: { [salePaymentMethod]: totalPrice },
