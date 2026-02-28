@@ -195,5 +195,7 @@ export interface Customer {
   email: string;
   address: string;
   notes: string;
+  debt: number;
+  credit: number;
   createdAt: string;
 }

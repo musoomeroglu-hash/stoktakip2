@@ -27,6 +27,13 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const [importing, setImporting] = useState(false);
 
+    // Cari (borç/alacak) state
+    const [showTxModal, setShowTxModal] = useState(false);
+    const [txCustomer, setTxCustomer] = useState<Customer | null>(null);
+    const [txType, setTxType] = useState<'debt' | 'credit' | 'payment_received' | 'payment_made'>('debt');
+    const [txAmount, setTxAmount] = useState(0);
+    const [txDesc, setTxDesc] = useState('');
+
     // Period filter state
     const [period, setPeriod] = useState<PeriodFilter>('thisMonth');
     const [customStart, setCustomStart] = useState('');
@@ -138,8 +145,40 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || null;
     const selectedStats = selectedCustomer ? customerStats.get(selectedCustomer.id) : null;
 
-    const totalRevenue = Array.from(customerStats.values()).reduce((s, c) => s + c.totalSpent, 0);
-    const avgSpent = customers.length > 0 ? totalRevenue / customers.length : 0;
+
+    // Cari totals
+    const totalDebt = customers.reduce((s, c) => s + (c.debt || 0), 0);
+    const totalCredit = customers.reduce((s, c) => s + (c.credit || 0), 0);
+    const netBalance = totalDebt - totalCredit;
+
+    // Open transaction dialog
+    const openTxDialog = (c: Customer) => {
+        setTxCustomer(c);
+        setTxType('debt');
+        setTxAmount(0);
+        setTxDesc('');
+        setShowTxModal(true);
+    };
+
+    // Handle transaction
+    const handleAddTransaction = async () => {
+        if (!txCustomer || txAmount <= 0) { showToast('Geçerli bir tutar girin!', 'error'); return; }
+        try {
+            let newDebt = txCustomer.debt || 0;
+            let newCredit = txCustomer.credit || 0;
+            switch (txType) {
+                case 'debt': newDebt += txAmount; break;
+                case 'credit': newCredit += txAmount; break;
+                case 'payment_received': newDebt = Math.max(0, newDebt - txAmount); break;
+                case 'payment_made': newCredit = Math.max(0, newCredit - txAmount); break;
+            }
+            const updated = { ...txCustomer, debt: newDebt, credit: newCredit };
+            await api.saveCustomer(updated);
+            setCustomers(customers.map(c => c.id === txCustomer.id ? updated : c));
+            setShowTxModal(false);
+            showToast('İşlem kaydedildi!');
+        } catch { showToast('İşlem kaydedilemedi!', 'error'); }
+    };
 
     const openCreate = () => {
         setEditing(null);
@@ -269,18 +308,27 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                         </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {[
-                            { label: 'Toplam Müşteri', value: customers.length, icon: 'group', color: 'text-violet-400', bgIcon: 'text-violet-500' },
-                            { label: 'Toplam Ciro', value: fp(totalRevenue), icon: 'payments', color: 'text-emerald-400', bgIcon: 'text-emerald-500' },
-                            { label: 'Ort. Müşteri Harcama', value: fp(avgSpent), icon: 'trending_up', color: 'text-amber-400', bgIcon: 'text-amber-500' },
-                        ].map(card => (
-                            <div key={card.label} className="glass-panel p-5 rounded-xl flex flex-col justify-between h-28 relative overflow-hidden">
-                                <div className="absolute right-0 top-0 p-4 opacity-10"><span className={`material-symbols-outlined text-6xl ${card.bgIcon}`}>{card.icon}</span></div>
-                                <div><p className="text-slate-400 text-sm mb-1">{card.label}</p><h3 className="text-2xl font-bold text-white">{card.value}</h3></div>
-                            </div>
-                        ))}
+                    {/* Cari Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="glass-panel p-5 rounded-xl flex flex-col justify-between h-28 relative overflow-hidden">
+                            <div className="absolute right-0 top-0 p-4 opacity-10"><span className="material-symbols-outlined text-6xl text-violet-500">group</span></div>
+                            <div><p className="text-slate-400 text-sm mb-1">Toplam Müşteri</p><h3 className="text-2xl font-bold text-white">{customers.length}</h3></div>
+                        </div>
+                        <div className="glass-panel p-5 rounded-xl flex flex-col justify-between h-28 relative overflow-hidden border-l-4 border-red-500/50">
+                            <div className="absolute right-0 top-0 p-4 opacity-10"><span className="material-symbols-outlined text-6xl text-red-500">trending_up</span></div>
+                            <div><p className="text-red-400 text-sm mb-1">Toplam Borç</p><h3 className="text-2xl font-bold text-red-400">{fp(totalDebt)}</h3>
+                                <p className="text-[10px] text-slate-500 mt-0.5">Müşteriler bize borçlu</p></div>
+                        </div>
+                        <div className="glass-panel p-5 rounded-xl flex flex-col justify-between h-28 relative overflow-hidden border-l-4 border-emerald-500/50">
+                            <div className="absolute right-0 top-0 p-4 opacity-10"><span className="material-symbols-outlined text-6xl text-emerald-500">trending_down</span></div>
+                            <div><p className="text-emerald-400 text-sm mb-1">Toplam Alacak</p><h3 className="text-2xl font-bold text-emerald-400">{fp(totalCredit)}</h3>
+                                <p className="text-[10px] text-slate-500 mt-0.5">Biz müşterilere borçluyuz</p></div>
+                        </div>
+                        <div className={`glass-panel p-5 rounded-xl flex flex-col justify-between h-28 relative overflow-hidden border-l-4 ${netBalance >= 0 ? 'border-blue-500/50' : 'border-orange-500/50'}`}>
+                            <div className="absolute right-0 top-0 p-4 opacity-10"><span className={`material-symbols-outlined text-6xl ${netBalance >= 0 ? 'text-blue-500' : 'text-orange-500'}`}>account_balance</span></div>
+                            <div><p className={`text-sm mb-1 ${netBalance >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>Net Durum</p><h3 className={`text-2xl font-bold ${netBalance >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>{fp(Math.abs(netBalance))}</h3>
+                                <p className="text-[10px] text-slate-500 mt-0.5">{netBalance >= 0 ? 'Lehimizde' : 'Aleyhimizde'}</p></div>
+                        </div>
                     </div>
 
                     {/* Search & Sort */}
@@ -332,16 +380,24 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                                         <h4 className="font-medium text-white truncate">{c.name}</h4>
                                         <p className="text-xs text-slate-400">{c.phone || 'Telefon yok'} {c.email ? `• ${c.email}` : ''}</p>
                                     </div>
-                                    <div className="flex items-center gap-4 text-right">
+                                    <div className="flex items-center gap-3 text-right">
+                                        {/* Cari Balance */}
+                                        {((c.debt || 0) > 0 || (c.credit || 0) > 0) && (
+                                            <div className="flex flex-col items-end gap-0.5">
+                                                {(c.debt || 0) > 0 && <span className="text-xs text-red-400">B: {fp(c.debt)}</span>}
+                                                {(c.credit || 0) > 0 && <span className="text-xs text-emerald-400">A: {fp(c.credit)}</span>}
+                                            </div>
+                                        )}
                                         <div>
                                             <p className="text-sm font-bold text-white">{fp(stats?.totalSpent || 0)}</p>
                                             <p className="text-xs text-slate-400">{totalTx} işlem</p>
                                         </div>
-                                        <div className="flex flex-col gap-1">
-                                            {(stats?.repairCount || 0) > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">{stats!.repairCount} tamir</span>}
-                                            {(stats?.phoneSaleCount || 0) > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">{stats!.phoneSaleCount} tel</span>}
-                                            {(stats?.productSaleCount || 0) > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">{stats!.productSaleCount} ürün</span>}
-                                        </div>
+                                        {/* Tx button */}
+                                        <button onClick={(e) => { e.stopPropagation(); openTxDialog(c); }}
+                                            className="w-8 h-8 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center text-blue-400 transition-all"
+                                            title="İşlem Ekle">
+                                            <span className="material-symbols-outlined text-sm">payments</span>
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -387,6 +443,28 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                                     {selectedCustomer.notes && <p className="text-sm text-slate-300 flex items-center gap-2"><span className="material-symbols-outlined text-sm text-slate-500">note</span>{selectedCustomer.notes}</p>}
                                 </div>
                             )}
+
+                            {/* Cari Balance */}
+                            <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Cari Hesap</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="text-center">
+                                        <p className="text-sm font-bold text-red-400">{fp(selectedCustomer.debt || 0)}</p>
+                                        <p className="text-[10px] text-slate-500">Borç</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-sm font-bold text-emerald-400">{fp(selectedCustomer.credit || 0)}</p>
+                                        <p className="text-[10px] text-slate-500">Alacak</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className={`text-sm font-bold ${(selectedCustomer.debt || 0) - (selectedCustomer.credit || 0) >= 0 ? 'text-blue-400' : 'text-orange-400'}`}>{fp(Math.abs((selectedCustomer.debt || 0) - (selectedCustomer.credit || 0)))}</p>
+                                        <p className="text-[10px] text-slate-500">Bakiye</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => openTxDialog(selectedCustomer)} className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">payments</span>İşlem Ekle
+                                </button>
+                            </div>
 
                             {/* Summary Stats */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -514,6 +592,66 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                         <div className="flex gap-3 justify-center">
                             <button onClick={() => setDeleteTarget(null)} className="px-5 py-2 text-sm text-slate-300 hover:bg-surface-hover rounded-lg border border-slate-700">İptal</button>
                             <button onClick={() => handleDelete(deleteTarget)} className="px-5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium">Sil</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Transaction Modal */}
+            {showTxModal && txCustomer && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowTxModal(false)}>
+                    <div className="bg-surface-dark border border-slate-700 rounded-2xl w-[95vw] md:w-full md:max-w-md animate-fade-in" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                            <div>
+                                <h3 className="text-lg font-bold text-white">İşlem Ekle</h3>
+                                <p className="text-sm text-slate-400">{txCustomer.name}</p>
+                            </div>
+                            <button onClick={() => setShowTxModal(false)} className="p-1 rounded-lg hover:bg-surface-hover text-slate-400"><span className="material-symbols-outlined">close</span></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">İşlem Tipi</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {([
+                                        { id: 'debt' as const, label: 'Borç Ekle', desc: 'Müşteri bize borçlandı', color: 'red' },
+                                        { id: 'credit' as const, label: 'Alacak Ekle', desc: 'Biz müşteriye borçlandık', color: 'emerald' },
+                                        { id: 'payment_received' as const, label: 'Tahsilat', desc: 'Borç ödemesi aldık', color: 'blue' },
+                                        { id: 'payment_made' as const, label: 'Ödeme', desc: 'Alacak ödemesi yaptık', color: 'amber' },
+                                    ]).map(t => (
+                                        <button key={t.id} onClick={() => setTxType(t.id)}
+                                            className={`p-3 rounded-xl text-left border transition-all ${txType === t.id
+                                                ? `border-${t.color}-500/50 bg-${t.color}-500/10`
+                                                : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'}`}>
+                                            <p className={`text-sm font-medium ${txType === t.id ? `text-${t.color}-400` : 'text-white'}`}>{t.label}</p>
+                                            <p className="text-[10px] text-slate-500 mt-0.5">{t.desc}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Tutar (₺)</label>
+                                <input type="number" min="0" step="0.01" value={txAmount || ''}
+                                    onChange={e => setTxAmount(parseFloat(e.target.value) || 0)}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg py-3 px-4 text-lg text-white font-bold focus:border-violet-500 outline-none"
+                                    placeholder="0,00" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Açıklama</label>
+                                <textarea value={txDesc} onChange={e => setTxDesc(e.target.value)} rows={2}
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-violet-500 outline-none resize-none"
+                                    placeholder="İşlem açıklaması..." />
+                            </div>
+                            {/* Current balance info */}
+                            <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between text-sm">
+                                <span className="text-slate-400">Mevcut Borç:</span><span className="text-red-400 font-medium">{fp(txCustomer.debt || 0)}</span>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-3 flex justify-between text-sm -mt-2">
+                                <span className="text-slate-400">Mevcut Alacak:</span><span className="text-emerald-400 font-medium">{fp(txCustomer.credit || 0)}</span>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 p-6 border-t border-slate-700">
+                            <button onClick={() => setShowTxModal(false)} className="px-4 py-2 text-sm text-slate-300 hover:bg-surface-hover rounded-lg">İptal</button>
+                            <button onClick={handleAddTransaction} className="px-6 py-2 bg-violet-500 hover:bg-violet-600 text-white rounded-lg text-sm font-medium shadow-lg shadow-violet-500/25">İşlemi Kaydet</button>
                         </div>
                     </div>
                 </div>
