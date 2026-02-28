@@ -46,37 +46,25 @@ export default function App() {
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      // Phase 1: Critical data — race against a 10s safety timeout
-      const timeout = new Promise(r => setTimeout(r, 10000));
-      await Promise.race([
-        Promise.allSettled([
-          api.getCategories().then(setCategories),
-          api.getProducts().then(setProducts),
-          api.getSales().then(setSales),
-        ]),
-        timeout,
+      const results = await Promise.allSettled([
+        api.getCategories().then(setCategories),
+        api.getProducts().then(setProducts),
+        api.getSales().then(setSales),
+        api.getRepairs().then(setRepairs),
+        api.getPhoneSales().then(setPhoneSales),
+        api.getPhoneStocks().then(setPhoneStocks),
+        api.getExpenses().then(setExpenses),
+        api.getCustomerRequests().then(setRequests),
+        api.getSuppliers().then(setSuppliers),
+        api.getPurchases().then(setPurchases),
+        api.getCustomers().then(setCustomers).catch(() => { }),
       ]);
-    } catch (e) {
-      console.warn('Phase 1 load error:', e);
+      results.forEach((r, i) => {
+        if (r.status === 'rejected') console.warn(`Data load ${i} failed:`, r.reason);
+      });
     } finally {
       setLoading(false);
     }
-
-    // Phase 2: Secondary data — load in background (no spinner)
-    Promise.allSettled([
-      api.getRepairs().then(setRepairs),
-      api.getPhoneSales().then(setPhoneSales),
-      api.getPhoneStocks().then(setPhoneStocks),
-      api.getExpenses().then(setExpenses),
-      api.getCustomerRequests().then(setRequests),
-      api.getSuppliers().then(setSuppliers),
-      api.getPurchases().then(setPurchases),
-      api.getCustomers().then(setCustomers).catch(() => { }),
-    ]).then(results => {
-      results.forEach((r, i) => {
-        if (r.status === 'rejected') console.warn(`Background load ${i} failed:`, r.reason);
-      });
-    });
   }, []);
 
   useEffect(() => {

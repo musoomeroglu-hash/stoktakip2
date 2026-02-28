@@ -15,27 +15,20 @@ const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/make-server-929c4905`;
 // DELETE /endpoint/:id → delete
 
 async function edgeFetch(endpoint: string, options: RequestInit = {}) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-        const res = await fetch(`${EDGE_FUNCTION_URL}${endpoint}`, {
-            ...options,
-            signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                ...options.headers,
-            },
-        });
-        if (!res.ok) {
-            const text = await res.text();
-            console.warn(`Edge Error ${res.status} on ${endpoint}:`, text);
-            throw new Error(`Edge Error: ${res.status}`);
-        }
-        return res.json();
-    } finally {
-        clearTimeout(timeout);
+    const res = await fetch(`${EDGE_FUNCTION_URL}${endpoint}`, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            ...options.headers,
+        },
+    });
+    if (!res.ok) {
+        const text = await res.text();
+        console.warn(`Edge Error ${res.status} on ${endpoint}:`, text);
+        throw new Error(`Edge Error: ${res.status}`);
     }
+    return res.json();
 }
 
 // ── Supabase REST helpers ──
