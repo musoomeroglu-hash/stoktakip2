@@ -38,11 +38,13 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
     const [isGenerating, setIsGenerating] = useState(false);
     const [generationProgress, setGenerationProgress] = useState('');
     const [settings, setSettings] = useState({
-        labelWidth: 50,
-        labelHeight: 30,
+        printMode: 'roll' as 'roll' | 'a4',
+        labelWidth: 62, // Default Brother QL roll width
+        labelHeight: 29, // Default Brother QL DK-11209 height
         labelsPerRow: 3,
         showPrice: true,
         showProductName: true,
+        showBorder: false,
     });
 
     // Filtering logic
@@ -148,26 +150,57 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
     };
 
     const generatePDF = () => {
-        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const { printMode, labelWidth, labelHeight, labelsPerRow } = settings;
+        
+        let doc: jsPDF;
+        if (printMode === 'roll') {
+            // landscape orientation fits standard barcode labels on rolls perfectly
+            doc = new jsPDF({ 
+                orientation: 'landscape', 
+                unit: 'mm', 
+                format: [labelWidth, labelHeight] 
+            });
+        } else {
+            doc = new jsPDF({ 
+                orientation: 'portrait', 
+                unit: 'mm', 
+                format: 'a4' 
+            });
+        }
+
         const pageHeight = 297;
         const margin = 5;
         const gap = 2;
-        const { labelWidth, labelHeight, labelsPerRow } = settings;
-        let x = margin, y = margin, col = 0;
+        
+        let x = printMode === 'roll' ? 0 : margin;
+        let y = printMode === 'roll' ? 0 : margin;
+        let col = 0;
+        let isFirstPage = true;
 
         for (const [productId, qty] of Object.entries(quantities)) {
             if (qty <= 0) continue;
             const product = products.find(p => p.id === productId);
             if (!product) continue;
             for (let i = 0; i < qty; i++) {
-                // Outer border of label card
-                doc.setLineWidth(0.15);
-                doc.setDrawColor(180, 180, 180);
-                doc.rect(x, y, labelWidth, labelHeight);
+                if (printMode === 'roll') {
+                    if (!isFirstPage) {
+                        doc.addPage([labelWidth, labelHeight], 'landscape');
+                    }
+                    isFirstPage = false;
+                    x = 0;
+                    y = 0;
+                }
+
+                // 1. Draw border (optional in roll mode, always in A4 mode)
+                if (printMode === 'a4' || settings.showBorder) {
+                    doc.setLineWidth(0.15);
+                    doc.setDrawColor(180, 180, 180);
+                    doc.rect(x, y, labelWidth, labelHeight);
+                }
 
                 const centerX = x + labelWidth / 2;
 
-                // 1. TECHNOCEP Header (Top brand)
+                // 2. TECHNOCEP Header (Top brand)
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(8);
                 doc.setTextColor(0, 0, 0);
@@ -178,19 +211,19 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
                 doc.setDrawColor(210, 210, 210);
                 doc.line(x + 4, y + (labelHeight * 0.21), x + labelWidth - 4, y + (labelHeight * 0.21));
 
-                // 2. Product Name (Below line)
+                // 3. Product Name (Below line)
                 if (settings.showProductName) {
                     doc.setFont('helvetica', 'normal');
                     doc.setFontSize(6.5);
                     doc.setTextColor(80, 80, 80);
-                    // Convert Turkish chars to prevent spacing stretch bugs in jsPDF center alignment
+                    // Split text manually to prevent letter-spacing stretching bugs in jsPDF center alignment
                     const cleanName = toEnglishChars(product.name);
                     const nameLines = doc.splitTextToSize(cleanName, labelWidth - 14);
                     const displayName = nameLines[0] ? (nameLines.length > 1 ? nameLines[0] + '...' : nameLines[0]) : '';
                     doc.text(displayName, centerX, y + (labelHeight * 0.33), { align: 'center' });
                 }
 
-                // 3. Barcode Image
+                // 4. Barcode Image
                 if (product.barcode) {
                     try {
                         const barcodeImg = generateBarcodePNG(product.barcode);
@@ -208,14 +241,14 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
                         console.warn('Barcode image generation failed:', err);
                     }
 
-                    // 4. Barcode Code Text (Centered Monospace)
+                    // 5. Barcode Code Text (Centered Monospace)
                     doc.setFont('courier', 'normal');
                     doc.setFontSize(7);
                     doc.setTextColor(0, 0, 0);
                     doc.text(product.barcode, centerX, y + (labelHeight * 0.76), { align: 'center' });
                 }
 
-                // 5. Price (Bottom centered, replaced ₺ with TL to prevent encoding glyph bugs)
+                // 6. Price (Bottom centered, replaced ₺ with TL to prevent encoding glyph bugs)
                 if (settings.showPrice) {
                     doc.setFont('helvetica', 'bold');
                     doc.setFontSize(9);
@@ -224,20 +257,22 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
                     doc.text(formattedPrice, centerX, y + (labelHeight * 0.90), { align: 'center' });
                 }
 
-                col++;
-                if (col >= labelsPerRow) { 
-                    col = 0; 
-                    x = margin; 
-                    y += labelHeight + gap; 
-                } else { 
-                    x += labelWidth + gap;  
-                }
+                if (printMode === 'a4') {
+                    col++;
+                    if (col >= labelsPerRow) { 
+                        col = 0; 
+                        x = margin; 
+                        y += labelHeight + gap; 
+                    } else { 
+                        x += labelWidth + gap; 
+                    }
 
-                if (y + labelHeight > pageHeight - margin) { 
-                    doc.addPage(); 
-                    x = margin; 
-                    y = margin; 
-                    col = 0; 
+                    if (y + labelHeight > pageHeight - margin) { 
+                        doc.addPage(); 
+                        x = margin; 
+                        y = margin; 
+                        col = 0; 
+                    }
                 }
             }
         }
@@ -275,35 +310,109 @@ export default function BarcodePrintModal({ products, categories = [], setProduc
                 </div>
 
                 {/* Settings & Config Bar */}
-                <div className="p-4 bg-slate-700/50 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
-                            <input type="checkbox" checked={settings.showProductName}
-                                onChange={e => setSettings(s => ({ ...s, showProductName: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
-                            Ürün Adı Göster
-                        </label>
-                        <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
-                            <input type="checkbox" checked={settings.showPrice}
-                                onChange={e => setSettings(s => ({ ...s, showPrice: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
-                            Fiyat Göster
-                        </label>
+                <div className="p-4 bg-slate-700/50 border-b border-slate-800 flex flex-col gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
+                        {/* Print Mode Selector */}
                         <div className="flex items-center gap-2 text-sm text-slate-900">
-                            <span className="font-medium">Yan yana etiket:</span>
-                            <select value={settings.labelsPerRow}
-                                onChange={e => setSettings(s => ({ ...s, labelsPerRow: parseInt(e.target.value) }))}
+                            <span className="font-medium">Yazıcı Tipi:</span>
+                            <select value={settings.printMode}
+                                onChange={e => {
+                                    const mode = e.target.value as 'roll' | 'a4';
+                                    setSettings(s => ({ 
+                                        ...s, 
+                                        printMode: mode, 
+                                        labelWidth: mode === 'roll' ? 62 : 50, 
+                                        labelHeight: mode === 'roll' ? 29 : 30 
+                                    }));
+                                }}
                                 className="bg-surface-dark border border-slate-800 rounded px-2.5 py-1 text-slate-900 text-sm font-semibold outline-none focus:border-primary">
-                                {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} Sütun</option>)}
+                                <option value="roll">Rulo Etiket Yazıcı (Brother QL, Zebra vb.)</option>
+                                <option value="a4">A4 Tabaka Kağıt (Normal Yazıcılar)</option>
                             </select>
+                        </div>
+
+                        {/* Presets sizes for roll printer */}
+                        {settings.printMode === 'roll' && (
+                            <div className="flex items-center gap-2 text-sm text-slate-900">
+                                <span className="font-medium">Şablon Rulo:</span>
+                                <select 
+                                    onChange={e => {
+                                        if (e.target.value !== 'custom') {
+                                            const [w, h] = e.target.value.split('x').map(Number);
+                                            setSettings(s => ({ ...s, labelWidth: w, labelHeight: h }));
+                                        }
+                                    }}
+                                    className="bg-surface-dark border border-slate-800 rounded px-2.5 py-1 text-slate-900 text-sm font-semibold outline-none focus:border-primary"
+                                >
+                                    <option value="62x29">Brother QL (62mm x 29mm) - DK-11209</option>
+                                    <option value="58x40">Zebra / Xprinter (58mm x 40mm)</option>
+                                    <option value="50x30">Standart Etiket (50mm x 30mm)</option>
+                                    <option value="custom">Özel Boyut...</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Dimensions inputs */}
+                        <div className="flex items-center gap-1.5 text-sm text-slate-900">
+                            <span className="font-medium">Boyut (G x Y mm):</span>
+                            <input type="number" value={settings.labelWidth}
+                                onChange={e => setSettings(s => ({ ...s, labelWidth: Number(e.target.value) }))}
+                                className="w-14 bg-surface-dark border border-slate-800 rounded px-2 py-1 text-slate-900 text-sm text-center font-bold outline-none focus:border-primary" />
+                            <span>x</span>
+                            <input type="number" value={settings.labelHeight}
+                                onChange={e => setSettings(s => ({ ...s, labelHeight: Number(e.target.value) }))}
+                                className="w-14 bg-surface-dark border border-slate-800 rounded px-2 py-1 text-slate-900 text-sm text-center font-bold outline-none focus:border-primary" />
                         </div>
                     </div>
 
-                    <button 
-                        onClick={handleBulkGenerate}
-                        className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
-                    >
-                        <span className="material-symbols-outlined text-sm font-bold">auto_awesome</span>
-                        Barkodsuz Ürünlere Toplu Barkod Tanımla
-                    </button>
+                    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800/30 pt-3">
+                        <div className="flex flex-wrap gap-4">
+                            <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
+                                <input type="checkbox" checked={settings.showProductName}
+                                    onChange={e => setSettings(s => ({ ...s, showProductName: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
+                                Ürün Adı Göster
+                            </label>
+                            <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
+                                <input type="checkbox" checked={settings.showPrice}
+                                    onChange={e => setSettings(s => ({ ...s, showPrice: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
+                                Fiyat Göster
+                            </label>
+
+                            {settings.printMode === 'a4' && (
+                                <>
+                                    <div className="flex items-center gap-2 text-sm text-slate-900">
+                                        <span className="font-medium">Sütun sayısı:</span>
+                                        <select value={settings.labelsPerRow}
+                                            onChange={e => setSettings(s => ({ ...s, labelsPerRow: parseInt(e.target.value) }))}
+                                            className="bg-surface-dark border border-slate-800 rounded px-2 py-1 text-slate-900 text-sm font-semibold outline-none focus:border-primary">
+                                            {[2, 3, 4, 5].map(n => <option key={n} value={n}>{n} Sütun</option>)}
+                                        </select>
+                                    </div>
+                                    <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
+                                        <input type="checkbox" checked={settings.showBorder}
+                                            onChange={e => setSettings(s => ({ ...s, showBorder: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
+                                        Kenarlık Çiz
+                                    </label>
+                                </>
+                            )}
+
+                            {settings.printMode === 'roll' && (
+                                <label className="flex items-center gap-2 text-slate-900 text-sm cursor-pointer font-medium">
+                                    <input type="checkbox" checked={settings.showBorder}
+                                        onChange={e => setSettings(s => ({ ...s, showBorder: e.target.checked }))} className="rounded text-primary focus:ring-primary border-slate-800 bg-surface-dark" />
+                                    Kesim Kılavuzu Çiz
+                                </label>
+                            )}
+                        </div>
+
+                        <button 
+                            onClick={handleBulkGenerate}
+                            className="px-3.5 py-1.5 bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                        >
+                            <span className="material-symbols-outlined text-sm font-bold">auto_awesome</span>
+                            Barkodsuz Ürünlere Toplu Barkod Tanımla
+                        </button>
+                    </div>
                 </div>
 
                 {/* Filters & Actions Row */}
