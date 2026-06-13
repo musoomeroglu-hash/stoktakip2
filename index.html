@@ -71,8 +71,8 @@
       --color-bg-dark: #f6f7f9;
       --color-surface-dark: #ffffff;
       --color-surface-hover: #f1f5f9;
-      --color-text-primary: #111827;
-      --color-text-secondary: #6b7280;
+      --color-text-primary: #000000;
+      --color-text-secondary: #1f2937;
       --color-border: #e5e7eb;
 
       --chart-background: oklch(1 0 0);
@@ -98,8 +98,8 @@
       --color-bg-dark: #f6f7f9;
       --color-surface-dark: #ffffff;
       --color-surface-hover: #f1f5f9;
-      --color-text-primary: #111827;
-      --color-text-secondary: #6b7280;
+      --color-text-primary: #000000;
+      --color-text-secondary: #1f2937;
       --color-border: #e5e7eb;
 
       --chart-background: oklch(1 0 0);
@@ -178,19 +178,72 @@
     }
 
     /* === GLOBAL TEXT OVERRIDES === */
-    .text-slate-50, .text-slate-100, .text-slate-200, .text-slate-300 {
-      color: var(--color-text-primary) !important;
+    .text-slate-50, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-700, .text-slate-800, .text-slate-850, .text-slate-900, .text-slate-950, .text-zinc-900, .text-zinc-950 {
+      color: #000000 !important;
     }
-    .text-slate-400, .text-slate-500 {
-      color: var(--color-text-secondary) !important;
-    }
-    .text-slate-600 {
-      color: #94a3b8 !important;
+    .text-slate-400, .text-slate-500, .text-slate-600 {
+      color: #1f2937 !important;
     }
 
     /* === TEXT WHITE SMART OVERRIDE === */
-    .text-white:not(.bg-primary):not([class*="bg-primary"]):not([class*="bg-emerald"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-amber"]):not([class*="bg-indigo"]):not([class*="bg-violet"]):not([class*="bg-rose"]):not([class*="bg-purple"]) {
-      color: var(--color-text-primary) !important;
+    .text-white {
+      color: #000000 !important;
+    }
+    .bg-primary .text-white,
+    [class*="bg-primary"] .text-white,
+    .bg-primary.text-white,
+    [class*="bg-primary"].text-white,
+    .bg-violet-500 .text-white,
+    .bg-violet-600 .text-white,
+    .bg-violet-500.text-white,
+    .bg-violet-600.text-white,
+    .bg-emerald-500 .text-white,
+    .bg-emerald-600 .text-white,
+    .bg-emerald-500.text-white,
+    .bg-emerald-600.text-white,
+    .bg-red-500 .text-white,
+    .bg-red-600 .text-white,
+    .bg-red-500.text-white,
+    .bg-red-600.text-white,
+    .bg-blue-500 .text-white,
+    .bg-blue-600 .text-white,
+    .bg-blue-500.text-white,
+    .bg-blue-600.text-white,
+    .bg-slate-600 .text-white,
+    .bg-slate-600.text-white,
+    .bg-purple-500 .text-white,
+    .bg-purple-600 .text-white,
+    .bg-purple-500.text-white,
+    .bg-purple-600.text-white,
+    .bg-indigo-500 .text-white,
+    .bg-indigo-600 .text-white,
+    .bg-indigo-500.text-white,
+    .bg-indigo-600.text-white,
+    button[class*="bg-primary"] .text-white,
+    button[class*="bg-primary"].text-white,
+    button[class*="bg-violet"] .text-white,
+    button[class*="bg-violet"].text-white,
+    button[class*="bg-emerald"] .text-white,
+    button[class*="bg-emerald"].text-white,
+    button[class*="bg-blue"] .text-white,
+    button[class*="bg-blue"].text-white,
+    button[class*="bg-red"] .text-white,
+    button[class*="bg-red"].text-white,
+    button[class*="bg-purple"] .text-white,
+    button[class*="bg-purple"].text-white,
+    button[class*="bg-indigo"] .text-white,
+    button[class*="bg-indigo"].text-white,
+    button[class*="bg-slate-600"] .text-white,
+    button[class*="bg-slate-600"].text-white,
+    span[class*="bg-emerald-500"] .text-white,
+    span[class*="bg-green-500"] .text-white,
+    span[class*="bg-blue-500"] .text-white,
+    span[class*="bg-red-500"] .text-white,
+    span[class*="bg-violet-500"] .text-white,
+    span[class*="bg-purple-500"] .text-white,
+    span[class*="bg-primary"] .text-white,
+    div[class*="bg-primary"] .text-white {
+      color: #ffffff !important;
     }
 
     .text-emerald-400, .text-emerald-500 {
@@ -203,13 +256,13 @@
       border-color: color-mix(in srgb, var(--color-primary) 20%, transparent) !important;
     }
     
-    input, select, textarea {
+    input, select, textarea, option {
       background-color: var(--color-surface-dark) !important;
       border-color: var(--color-border) !important;
-      color: var(--color-text-primary) !important;
+      color: #000000 !important;
     }
     input::placeholder, textarea::placeholder {
-      color: #94a3b8 !important;
+      color: #555555 !important;
     }
 
     html,
