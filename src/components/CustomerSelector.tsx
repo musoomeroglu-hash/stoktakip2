@@ -76,7 +76,7 @@ export default function CustomerSelector({ customers, selectedCustomerName, sele
                         <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
                             <span className="material-symbols-outlined text-violet-400 text-xs">person</span>
                         </div>
-                        <span className="text-white">{selectedCustomerName}</span>
+                        <span className="text-slate-900">{selectedCustomerName}</span>
                         {selectedCustomerPhone && <span className="text-slate-400 text-xs">({selectedCustomerPhone})</span>}
                         <button type="button" onClick={(e) => { e.stopPropagation(); handleClear(); }}
                             className="ml-auto p-0.5 rounded hover:bg-red-500/10 text-slate-500 hover:text-red-400">
@@ -101,7 +101,7 @@ export default function CustomerSelector({ customers, selectedCustomerName, sele
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 placeholder="Müşteri ara..."
-                                className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-sm text-white placeholder:text-slate-500 focus:border-violet-500 outline-none"
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 pl-8 pr-3 text-sm text-slate-900 placeholder:text-slate-500 focus:border-violet-500 outline-none"
                                 autoFocus
                             />
                         </div>
@@ -124,7 +124,7 @@ export default function CustomerSelector({ customers, selectedCustomerName, sele
                                     <span className="material-symbols-outlined text-violet-400 text-sm">person</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-white truncate">{c.name}</p>
+                                    <p className="text-sm text-slate-900 truncate">{c.name}</p>
                                     {c.phone && <p className="text-xs text-slate-400">{c.phone}</p>}
                                 </div>
                             </button>
@@ -136,9 +136,9 @@ export default function CustomerSelector({ customers, selectedCustomerName, sele
                         {showQuickAdd ? (
                             <div className="p-3 space-y-2">
                                 <input type="text" value={quickName} onChange={e => setQuickName(e.target.value)} placeholder="Müşteri adı *"
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-sm text-white focus:border-violet-500 outline-none" autoFocus />
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-sm text-slate-900 focus:border-violet-500 outline-none" autoFocus />
                                 <input type="text" value={quickPhone} onChange={e => setQuickPhone(e.target.value)} placeholder="Telefon"
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-sm text-white focus:border-violet-500 outline-none" />
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-1.5 px-3 text-sm text-slate-900 focus:border-violet-500 outline-none" />
                                 <div className="flex gap-2">
                                     <button type="button" onClick={() => setShowQuickAdd(false)} className="flex-1 py-1.5 text-xs text-slate-400 hover:bg-surface-hover rounded-lg">İptal</button>
                                     <button type="button" onClick={handleQuickAdd} className="flex-1 py-1.5 bg-violet-500 hover:bg-violet-600 text-white text-xs rounded-lg font-medium">Ekle & Seç</button>

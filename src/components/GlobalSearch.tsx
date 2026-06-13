@@ -103,7 +103,7 @@ export default function GlobalSearch({ products, customers, repairs, suppliers, 
                         onChange={e => { setQuery(e.target.value); setSelected(0); }}
                         onKeyDown={handleKeyDown}
                         placeholder="Ürün, müşteri, tamir veya tedarikçi ara..."
-                        className="flex-1 bg-transparent border-none outline-none text-white text-base placeholder:text-slate-500" />
+                        className="flex-1 bg-transparent border-none outline-none text-slate-900 text-base placeholder:text-slate-500" />
                     <kbd className="px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-xs">ESC</kbd>
                 </div>
                 <div className="max-h-80 overflow-y-auto">
@@ -129,7 +129,7 @@ export default function GlobalSearch({ products, customers, repairs, suppliers, 
                                 <span className="material-symbols-outlined text-sm">{r.icon}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-white text-sm font-medium truncate">{r.title}</p>
+                                <p className="text-slate-900 text-sm font-medium truncate">{r.title}</p>
                                 <p className="text-slate-400 text-xs truncate">{r.sub}</p>
                             </div>
                             <span className="material-symbols-outlined text-slate-600 text-sm">chevron_right</span>

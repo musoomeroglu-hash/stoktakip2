@@ -29,7 +29,7 @@ function ProductSearchDropdown({ products, selectedId, onSelect, fp }: {
                 onFocus={() => { setOpen(true); setQuery(''); }}
                 onBlur={() => setTimeout(() => setOpen(false), 200)}
                 placeholder="Ürün ara..."
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-white focus:border-primary outline-none"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 text-sm text-slate-900 focus:border-primary outline-none"
             />
             {open && (
                 <div className="absolute z-50 mt-1 w-full bg-slate-800 border border-slate-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
@@ -40,7 +40,7 @@ function ProductSearchDropdown({ products, selectedId, onSelect, fp }: {
                             key={p.id}
                             type="button"
                             onMouseDown={e => { e.preventDefault(); onSelect(p.id); setQuery(''); setOpen(false); }}
-                            className={`w-full text-left px-3 py-2 text-sm hover:bg-primary/20 transition-colors flex justify-between items-center ${p.id === selectedId ? 'bg-primary/10 text-primary' : 'text-white'}`}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-primary/20 transition-colors flex justify-between items-center ${p.id === selectedId ? 'bg-primary/10 text-primary' : 'text-slate-900'}`}
                         >
                             <span className="truncate">{p.name}</span>
                             <span className="text-slate-400 text-xs ml-2 flex-shrink-0">{fp(p.salePrice)} • Stok: {p.stock}</span>

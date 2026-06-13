@@ -54,7 +54,7 @@ export default function Sidebar({
                             <span className="material-symbols-outlined text-primary text-3xl">inventory_2</span>
                         </div>
                         <div>
-                            <h1 className="text-white text-lg font-bold leading-tight">StokTakip Pro</h1>
+                            <h1 className="text-slate-900 text-lg font-bold leading-tight">StokTakip Pro</h1>
                             <p className="text-slate-400 text-xs">Yönetici Paneli</p>
                         </div>
                     </div>
@@ -128,7 +128,7 @@ export default function Sidebar({
                             <span className="material-symbols-outlined text-primary">person</span>
                         </div>
                         <div className="flex-1">
-                            <span className="text-sm font-semibold text-white block">Admin</span>
+                            <span className="text-sm font-semibold text-slate-900 block">Admin</span>
                             <span className="text-xs text-slate-400">technocep</span>
                         </div>
                         <span className="material-symbols-outlined text-slate-400 hover:text-red-400 transition-colors">logout</span>

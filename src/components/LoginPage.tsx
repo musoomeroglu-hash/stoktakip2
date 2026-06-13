@@ -38,7 +38,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/20 mb-4">
                         <span className="material-symbols-outlined text-primary text-4xl">inventory_2</span>
                     </div>
-                    <h1 className="text-3xl font-bold text-white">StokTakip Pro</h1>
+                    <h1 className="text-3xl font-bold text-slate-900">StokTakip Pro</h1>
                     <p className="text-slate-400 mt-2">Yönetici Paneline Hoş Geldiniz</p>
                 </div>
 
@@ -53,7 +53,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                                     type="text"
                                     value={username}
                                     onChange={e => setUsername(e.target.value)}
-                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                     placeholder="Kullanıcı adınızı girin"
                                     autoFocus
                                 />
@@ -68,7 +68,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                                     type="password"
                                     value={password}
                                     onChange={e => setPassword(e.target.value)}
-                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                    className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none"
                                     placeholder="••••••••"
                                 />
                             </div>
