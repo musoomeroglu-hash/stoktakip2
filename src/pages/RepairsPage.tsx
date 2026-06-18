@@ -9,6 +9,7 @@ import CustomerSelector from '../components/CustomerSelector';
 import RepairPhotoGallery from '../components/RepairPhotoGallery';
 import type { RepairPhoto } from '../types';
 import { jsPDF } from 'jspdf';
+import { registerTurkishFont } from '../utils/pdfFont';
 
 function RepairPhotoGalleryModal({ repair, onClose }: { repair: RepairRecord; onClose: () => void }) {
     const [photosBefore, setPhotosBefore] = useState<RepairPhoto[]>([]);
@@ -129,40 +130,199 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
     }, [showScanner, startScanner]);
 
     const generateServiceForm = (repair: RepairRecord) => {
-        const doc = new jsPDF();
-        
-        doc.setFontSize(22);
-        doc.text('SERVIS FORMU', 105, 20, { align: 'center' });
-        
-        doc.setFontSize(12);
-        doc.text(`Tarih: ${formatDate(repair.createdAt)}`, 20, 40);
-        doc.text(`Islem Durumu: ${getRepairStatusInfo(repair.status).label.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 50);
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        registerTurkishFont(doc);
 
-        doc.setFontSize(14);
-        doc.text('Musteri Bilgileri', 20, 70);
-        doc.setFontSize(12);
-        doc.text(`Ad Soyad: ${repair.customerName.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 80);
-        doc.text(`Telefon: ${repair.customerPhone}`, 20, 90);
+        const PAGE_W = 210;
+        const M = 16;                 // sayfa kenar boşluğu
+        const CONTENT_W = PAGE_W - M * 2;
 
-        doc.setFontSize(14);
-        doc.text('Cihaz Bilgileri', 20, 110);
-        doc.setFontSize(12);
-        doc.text(`Model: ${repair.deviceInfo.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 120);
-        doc.text(`IMEI: ${repair.imei || '-'}`, 20, 130);
-        doc.text(`Ariza Tespiti: ${repair.problemDescription ? repair.problemDescription.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c') : '-'}`, 20, 140);
+        // --- Renk paleti ---
+        const slate900: [number, number, number] = [15, 23, 42];
+        const slate500: [number, number, number] = [100, 116, 139];
+        const slate200: [number, number, number] = [226, 232, 240];
+        const slate50: [number, number, number] = [248, 250, 252];
+        const ink: [number, number, number] = [30, 41, 59];
+        const accent: [number, number, number] = [37, 99, 235];
 
-        doc.setFontSize(14);
-        doc.text('Ucretlendirme', 20, 160);
-        doc.setFontSize(12);
-        doc.text(`Tamir Ucreti: ${repair.repairCost} TL`, 20, 170);
-        doc.text(`On Odeme: ${repair.prePayment} TL`, 20, 180);
-        doc.text(`Kalan Ucret: ${repair.repairCost - repair.prePayment} TL`, 20, 190);
+        const statusColors: Record<string, [number, number, number]> = {
+            in_progress: [37, 99, 235],
+            completed: [22, 163, 74],
+            delivered: [5, 150, 105],
+            waiting_parts: [234, 88, 12],
+            cancelled: [220, 38, 38],
+        };
 
-        doc.setFontSize(10);
-        doc.text('Bu form cihaz teslim tutanagi niteligindedir.', 105, 250, { align: 'center' });
-        doc.text('Bizi tercih ettiginiz icin tesekkur ederiz.', 105, 260, { align: 'center' });
+        const storeName = (localStorage.getItem('storeName') || 'TEKNİK SERVİS').toUpperCase();
+        const storePhone = localStorage.getItem('storePhone') || '';
+        const money = (n: number) => `${(n || 0).toLocaleString('tr-TR')} TL`;
+        const setColor = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
+        const fill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
 
-        doc.save(`Servis_Formu_${repair.customerName.replace(/\s+/g, '_').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}.pdf`);
+        // ===== Üst başlık bandı =====
+        const headerH = 30;
+        fill(slate900);
+        doc.rect(0, 0, PAGE_W, headerH, 'F');
+        fill(accent);
+        doc.rect(0, headerH, PAGE_W, 1.4, 'F');
+
+        doc.setFont('Roboto', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(255, 255, 255);
+        doc.text(storeName, M, 16);
+        if (storePhone) {
+            doc.setFont('Roboto', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor(203, 213, 225);
+            doc.text(`Tel: ${storePhone}`, M, 23);
+        }
+
+        doc.setFont('Roboto', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(255, 255, 255);
+        doc.text('SERVİS FORMU', PAGE_W - M, 14, { align: 'right' });
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(203, 213, 225);
+        doc.text(`Form No: ${repair.id.slice(-6).toUpperCase()}`, PAGE_W - M, 20, { align: 'right' });
+        doc.text(`Tarih: ${formatDate(repair.createdAt)}`, PAGE_W - M, 25.5, { align: 'right' });
+
+        // ===== Durum rozeti =====
+        let y = headerH + 11;
+        const status = getRepairStatusInfo(repair.status);
+        const badge = statusColors[repair.status] || accent;
+        const badgeLabel = `Durum: ${status.label}`;
+        doc.setFont('Roboto', 'bold');
+        doc.setFontSize(9.5);
+        const badgeW = doc.getTextWidth(badgeLabel) + 10;
+        fill(badge);
+        doc.roundedRect(M, y - 5, badgeW, 8, 2, 2, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.text(badgeLabel, M + 5, y);
+
+        if (repair.deliveredAt) {
+            doc.setFont('Roboto', 'normal');
+            setColor(slate500);
+            doc.setFontSize(9);
+            doc.text(`Teslim: ${formatDate(repair.deliveredAt)}`, PAGE_W - M, y, { align: 'right' });
+        }
+
+        y += 12;
+
+        // ===== Bölüm yardımcıları =====
+        const sectionTitle = (title: string) => {
+            doc.setFont('Roboto', 'bold');
+            doc.setFontSize(11);
+            setColor(accent);
+            doc.text(title, M, y);
+            doc.setDrawColor(slate200[0], slate200[1], slate200[2]);
+            doc.setLineWidth(0.3);
+            doc.line(M, y + 2, PAGE_W - M, y + 2);
+            y += 8;
+        };
+
+        // İki sütunlu etiket/değer satırı
+        const colX = M;
+        const col2X = M + CONTENT_W / 2 + 4;
+        const field = (label: string, value: string, x: number, rowY: number) => {
+            doc.setFont('Roboto', 'normal');
+            doc.setFontSize(8.5);
+            setColor(slate500);
+            doc.text(label.toUpperCase(), x, rowY);
+            doc.setFont('Roboto', 'bold');
+            doc.setFontSize(11);
+            setColor(ink);
+            doc.text(value || '-', x, rowY + 5.5);
+        };
+
+        // ===== Müşteri Bilgileri =====
+        sectionTitle('Müşteri Bilgileri');
+        field('Ad Soyad', repair.customerName, colX, y);
+        field('Telefon', repair.customerPhone || '-', col2X, y);
+        y += 14;
+
+        // ===== Cihaz Bilgileri =====
+        sectionTitle('Cihaz Bilgileri');
+        field('Model', repair.deviceInfo, colX, y);
+        field('IMEI / Seri No', repair.imei || '-', col2X, y);
+        y += 16;
+
+        // Arıza tespiti (tam genişlik kutu)
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(8.5);
+        setColor(slate500);
+        doc.text('ARIZA TESPİTİ', colX, y);
+        y += 3;
+        const problem = repair.problemDescription || '-';
+        const problemLines = doc.splitTextToSize(problem, CONTENT_W - 8);
+        const boxH = Math.max(14, problemLines.length * 5 + 8);
+        fill(slate50);
+        doc.setDrawColor(slate200[0], slate200[1], slate200[2]);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(M, y, CONTENT_W, boxH, 2, 2, 'FD');
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(10.5);
+        setColor(ink);
+        doc.text(problemLines, M + 4, y + 6);
+        y += boxH + 12;
+
+        // ===== Ücretlendirme tablosu =====
+        sectionTitle('Ücretlendirme');
+        const remaining = (repair.repairCost || 0) - (repair.prePayment || 0);
+        const rows: [string, string][] = [
+            ['Tamir Ücreti', money(repair.repairCost)],
+            ['Ön Ödeme', money(repair.prePayment)],
+        ];
+        const rowH = 9;
+        rows.forEach((r, i) => {
+            if (i % 2 === 1) {
+                fill(slate50);
+                doc.rect(M, y - 6, CONTENT_W, rowH, 'F');
+            }
+            doc.setFont('Roboto', 'normal');
+            doc.setFontSize(10.5);
+            setColor(ink);
+            doc.text(r[0], M + 3, y);
+            doc.text(r[1], PAGE_W - M - 3, y, { align: 'right' });
+            y += rowH;
+        });
+        // Kalan tutar — vurgulu satır
+        fill(slate900);
+        doc.roundedRect(M, y - 6, CONTENT_W, rowH + 1, 1.5, 1.5, 'F');
+        doc.setFont('Roboto', 'bold');
+        doc.setFontSize(11.5);
+        doc.setTextColor(255, 255, 255);
+        doc.text('Kalan Tutar', M + 3, y + 0.5);
+        doc.text(money(remaining), PAGE_W - M - 3, y + 0.5, { align: 'right' });
+        y += rowH + 14;
+
+        // ===== İmza alanları =====
+        const signW = (CONTENT_W - 10) / 2;
+        const signY = Math.max(y, 250);
+        doc.setDrawColor(slate200[0], slate200[1], slate200[2]);
+        doc.setLineWidth(0.4);
+        doc.line(M, signY, M + signW, signY);
+        doc.line(PAGE_W - M - signW, signY, PAGE_W - M, signY);
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(9);
+        setColor(slate500);
+        doc.text('Teslim Eden (Yetkili)', M, signY + 5);
+        doc.text('Teslim Alan (Müşteri)', PAGE_W - M - signW, signY + 5);
+
+        // ===== Alt bilgi =====
+        const footY = 285;
+        doc.setDrawColor(slate200[0], slate200[1], slate200[2]);
+        doc.setLineWidth(0.3);
+        doc.line(M, footY - 5, PAGE_W - M, footY - 5);
+        doc.setFont('Roboto', 'normal');
+        doc.setFontSize(8);
+        setColor(slate500);
+        doc.text('Bu form cihaz teslim tutanağı niteliğindedir.', PAGE_W / 2, footY, { align: 'center' });
+        doc.text('Bizi tercih ettiğiniz için teşekkür ederiz.', PAGE_W / 2, footY + 4, { align: 'center' });
+
+        const safeName = repair.customerName
+            .normalize('NFKD').replace(/[^\w]+/g, '_').replace(/^_+|_+$/g, '') || 'Musteri';
+        doc.save(`Servis_Formu_${safeName}.pdf`);
     };
 
     // Date filter state
