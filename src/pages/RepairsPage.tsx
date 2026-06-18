@@ -9,7 +9,6 @@ import CustomerSelector from '../components/CustomerSelector';
 import RepairPhotoGallery from '../components/RepairPhotoGallery';
 import type { RepairPhoto } from '../types';
 import { jsPDF } from 'jspdf';
-import { registerTurkishFont } from '../utils/pdfFont';
 
 function RepairPhotoGalleryModal({ repair, onClose }: { repair: RepairRecord; onClose: () => void }) {
     const [photosBefore, setPhotosBefore] = useState<RepairPhoto[]>([]);
@@ -129,7 +128,8 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
         }
     }, [showScanner, startScanner]);
 
-    const generateServiceForm = (repair: RepairRecord) => {
+    const generateServiceForm = async (repair: RepairRecord) => {
+        const { registerTurkishFont } = await import('../utils/pdfFont');
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
         registerTurkishFont(doc);
 
