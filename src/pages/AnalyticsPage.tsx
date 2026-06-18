@@ -68,7 +68,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
                 + fRepairs.filter(r => r.createdAt?.startsWith(dayStr)).reduce((sum, r) => sum + r.profit, 0)
                 + fPhoneSales.filter(ps => ps.date?.startsWith(dayStr)).reduce((sum, ps) => sum + ps.profit, 0);
 
-            const dayExpense = fExpenses.filter(e => e.createdAt?.startsWith(dayStr) && e.category !== 'Tedarikçi').reduce((sum, e) => sum + e.amount, 0);
+            const dayExpense = fExpenses.filter(e => e.createdAt?.startsWith(dayStr)).reduce((sum, e) => sum + e.amount, 0);
 
             days.push({ date: label, revenue: dayRevenue, profit: dayProfit, expense: dayExpense });
         }
@@ -128,15 +128,16 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
 
     // Top customers
     const topCustomers = useMemo(() => {
-        const map: Record<string, { name: string; total: number; count: number }> = {};
+        const map: Record<string, { name: string; total: number; count: number; profit: number }> = {};
         [...fSales, ...fRepairs as any[], ...fPhoneSales].forEach((s: any) => {
             const name = s.customerInfo?.name || s.customerName;
             if (!name) return;
-            if (!map[name]) map[name] = { name, total: 0, count: 0 };
+            if (!map[name]) map[name] = { name, total: 0, count: 0, profit: 0 };
             map[name].total += s.totalPrice || s.repairCost || s.salePrice || 0;
+            map[name].profit += s.totalProfit ?? s.profit ?? 0;
             map[name].count++;
         });
-        return Object.values(map).sort((a, b) => b.total - a.total).slice(0, 5);
+        return Object.values(map).sort((a, b) => b.profit - a.profit);
     }, [fSales, fRepairs, fPhoneSales]);
 
     // Summary stats
@@ -146,8 +147,8 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
     const totalProfit = fSales.reduce((s, v) => s + v.totalProfit, 0)
         + fRepairs.reduce((s, v) => s + v.profit, 0)
         + fPhoneSales.reduce((s, v) => s + v.profit, 0);
-    const operatingExpenses = fExpenses.filter(e => e.category !== 'Tedarikçi').reduce((s, v) => s + v.amount, 0);
-    const netProfit = totalProfit - operatingExpenses;
+    const totalExpenses = fExpenses.reduce((s, v) => s + v.amount, 0);
+    const netProfit = totalProfit - totalExpenses;
 
     return (
         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin">
@@ -178,7 +179,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
                 {[
                     { label: 'Toplam Ciro', value: fp(totalRevenue), color: 'text-blue-400' },
                     { label: 'Toplam Kâr', value: fp(totalProfit), color: 'text-emerald-400' },
-                    { label: 'İşletme Gideri', value: fp(operatingExpenses), color: 'text-red-400' },
+                    { label: 'Toplam Gider', value: fp(totalExpenses), color: 'text-red-400' },
                     { label: 'Net Kâr', value: fp(netProfit), color: netProfit >= 0 ? 'text-emerald-400' : 'text-red-400' },
                 ].map(card => (
                     <div key={card.label} className="glass-panel p-5 rounded-xl">
@@ -273,15 +274,55 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
                 <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">👥 Sadık Müşteriler</h3>
                     <div className="space-y-3">
-                        {topCustomers.length === 0 ? <p className="text-slate-400 text-sm">Veri yok</p> :
-                            topCustomers.map((c, i) => (
+                        {topCustomers.slice(0, 5).length === 0 ? <p className="text-slate-400 text-sm">Veri yok</p> :
+                            topCustomers.slice(0, 5).map((c, i) => (
                                 <div key={c.name} className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50">
                                     <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${i === 0 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-slate-700 text-slate-300'}`}>{i + 1}</span>
                                     <div className="flex-1"><span className="text-sm text-white">{c.name}</span><span className="text-xs text-slate-400 ml-2">({c.count} işlem)</span></div>
-                                    <span className="text-sm font-medium text-emerald-400">{fp(c.total)}</span>
+                                    <div className="text-right">
+                                        <div className="text-sm font-medium text-emerald-400">{fp(c.profit)} Kâr</div>
+                                        <div className="text-xs text-slate-400">{fp(c.total)} Ciro</div>
+                                    </div>
                                 </div>
                             ))}
                     </div>
+                </div>
+            </div>
+
+            {/* Detailed Customer Analysis Table */}
+            <div className="bg-surface-dark border border-slate-700/50 rounded-xl p-6 overflow-hidden flex flex-col">
+                <h3 className="text-lg font-semibold text-white mb-4">Detaylı Müşteri Kâr Analizi</h3>
+                <div className="overflow-x-auto max-h-96 scrollbar-thin">
+                    <table className="w-full text-left min-w-[600px]">
+                        <thead className="sticky top-0 bg-surface-dark z-10 shadow-sm">
+                            <tr className="bg-slate-800/50 border-b border-slate-700 text-xs uppercase text-slate-400 font-semibold tracking-wider">
+                                <th className="p-3">Müşteri</th>
+                                <th className="p-3 text-center">İşlem Sayısı</th>
+                                <th className="p-3 text-right">Toplam Ciro</th>
+                                <th className="p-3 text-right">Toplam Kâr</th>
+                                <th className="p-3 text-right">Kâr Marjı</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700/50 text-sm">
+                            {topCustomers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-8 text-slate-400">Bu dönemde işlem yapan müşteri bulunamadı.</td>
+                                </tr>
+                            ) : (
+                                topCustomers.map((c) => (
+                                    <tr key={c.name} className="hover:bg-surface-hover/50 transition-colors">
+                                        <td className="p-3 text-white font-medium">{c.name}</td>
+                                        <td className="p-3 text-center text-slate-300">{c.count}</td>
+                                        <td className="p-3 text-right text-blue-400 font-medium">{fp(c.total)}</td>
+                                        <td className="p-3 text-right text-emerald-400 font-medium">{fp(c.profit)}</td>
+                                        <td className="p-3 text-right text-slate-400">
+                                            {c.total > 0 ? `%${((c.profit / c.total) * 100).toFixed(1)}` : '—'}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

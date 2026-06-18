@@ -8,6 +8,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import CustomerSelector from '../components/CustomerSelector';
 import RepairPhotoGallery from '../components/RepairPhotoGallery';
 import type { RepairPhoto } from '../types';
+import { jsPDF } from 'jspdf';
 
 function RepairPhotoGalleryModal({ repair, onClose }: { repair: RepairRecord; onClose: () => void }) {
     const [photosBefore, setPhotosBefore] = useState<RepairPhoto[]>([]);
@@ -126,6 +127,43 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
             return () => clearTimeout(timer);
         }
     }, [showScanner, startScanner]);
+
+    const generateServiceForm = (repair: RepairRecord) => {
+        const doc = new jsPDF();
+        
+        doc.setFontSize(22);
+        doc.text('SERVIS FORMU', 105, 20, { align: 'center' });
+        
+        doc.setFontSize(12);
+        doc.text(`Tarih: ${formatDate(repair.createdAt)}`, 20, 40);
+        doc.text(`Islem Durumu: ${getRepairStatusInfo(repair.status).label.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 50);
+
+        doc.setFontSize(14);
+        doc.text('Musteri Bilgileri', 20, 70);
+        doc.setFontSize(12);
+        doc.text(`Ad Soyad: ${repair.customerName.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 80);
+        doc.text(`Telefon: ${repair.customerPhone}`, 20, 90);
+
+        doc.setFontSize(14);
+        doc.text('Cihaz Bilgileri', 20, 110);
+        doc.setFontSize(12);
+        doc.text(`Model: ${repair.deviceInfo.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}`, 20, 120);
+        doc.text(`IMEI: ${repair.imei || '-'}`, 20, 130);
+        doc.text(`Ariza Tespiti: ${repair.problemDescription ? repair.problemDescription.replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c') : '-'}`, 20, 140);
+
+        doc.setFontSize(14);
+        doc.text('Ucretlendirme', 20, 160);
+        doc.setFontSize(12);
+        doc.text(`Tamir Ucreti: ${repair.repairCost} TL`, 20, 170);
+        doc.text(`On Odeme: ${repair.prePayment} TL`, 20, 180);
+        doc.text(`Kalan Ucret: ${repair.repairCost - repair.prePayment} TL`, 20, 190);
+
+        doc.setFontSize(10);
+        doc.text('Bu form cihaz teslim tutanagi niteligindedir.', 105, 250, { align: 'center' });
+        doc.text('Bizi tercih ettiginiz icin tesekkur ederiz.', 105, 260, { align: 'center' });
+
+        doc.save(`Servis_Formu_${repair.customerName.replace(/\s+/g, '_').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ğ/g, 'g').replace(/ç/g, 'c')}.pdf`);
+    };
 
     // Date filter state
     const [dateFilter, setDateFilter] = useState<'today' | 'thisMonth' | 'lastMonth' | 'all' | 'custom'>('today');
@@ -528,7 +566,10 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
                             )}
 
                             {/* Actions */}
-                            <div className="flex gap-3 pt-4 pb-2 border-t border-slate-700 mt-4">
+                            <div className="flex flex-wrap gap-3 pt-4 pb-2 border-t border-slate-700 mt-4">
+                                <button onClick={() => generateServiceForm(selectedRepair)} className="flex-1 py-2.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                                    <span className="material-symbols-outlined text-lg">print</span> Form Yazdır
+                                </button>
                                 <button onClick={() => setPhotoRepair(selectedRepair)} className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
                                     <span className="material-symbols-outlined text-lg">photo_camera</span> Fotoğraflar
                                 </button>

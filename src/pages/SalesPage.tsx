@@ -337,6 +337,7 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
     const searchedSales = filteredSales.filter(s =>
         !searchTerm || s.items.some(i => (i.productName || '').toLowerCase().includes(searchTerm.toLowerCase()))
         || (s.customerInfo?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+        || (s.customerInfo?.phone || '').includes(searchTerm)
     );
 
     const tabs: { id: TabType; label: string; icon: string }[] = [
