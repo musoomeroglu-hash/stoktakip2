@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from 'react';
-import type { PhoneStock, PhoneSale, Customer } from '../types';
+import type { PhoneStock, PhoneSale, Customer, WarrantyRecord } from '../types';
 import { formatDate, generateId, getPaymentMethodLabel } from '../utils/helpers';
 import { useFormatPrice } from '../components/PriceVisibility';
 import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
 import { Html5Qrcode } from 'html5-qrcode';
 import CustomerSelector from '../components/CustomerSelector';
+import WarrantyModal from '../components/WarrantyModal';
 
 interface PhoneSalesPageProps {
     phoneStocks: PhoneStock[];
@@ -34,6 +35,26 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
     const [stockForm, setStockForm] = useState({ brand: '', model: '', imei: '', purchasePrice: 0, salePrice: 0, notes: '' });
     const [showImeiScanner, setShowImeiScanner] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
+
+    // Garanti
+    const [warrantySale, setWarrantySale] = useState<PhoneSale | null>(null);
+    const [warrantyExisting, setWarrantyExisting] = useState<WarrantyRecord | null>(null);
+    const [warrantyLoading, setWarrantyLoading] = useState(false);
+
+    // Aynı satışa ikinci kez garanti eklenmesin: varsa mevcut kaydı düzenleme modunda aç
+    const openWarranty = async (sale: PhoneSale) => {
+        setWarrantyLoading(true);
+        try {
+            const existing = await api.getWarrantyForItem('phone', sale.id);
+            setWarrantyExisting(existing);
+        } catch (err) {
+            console.warn('Warranty lookup failed:', err);
+            setWarrantyExisting(null);
+        } finally {
+            setWarrantyLoading(false);
+            setWarrantySale(sale);
+        }
+    };
 
     const startImeiScanner = useCallback(async () => {
         try {
@@ -272,6 +293,14 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                                             <p className="text-sm text-slate-300">{selectedPhoneSale.notes}</p>
                                         </div>
                                     )}
+
+                                    {/* Actions */}
+                                    <div className="flex flex-wrap gap-3 pt-4 border-t border-slate-700">
+                                        <button onClick={() => openWarranty(selectedPhoneSale)} disabled={warrantyLoading}
+                                            className="flex-1 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                                            <span className="material-symbols-outlined text-lg">verified_user</span> {warrantyLoading ? '...' : 'Garanti'}
+                                        </button>
+                                    </div>
                                 </div>
                             ) : selectedStock ? (
                                 <>
@@ -391,6 +420,24 @@ export default function PhoneSalesPage({ phoneStocks, phoneSales, setPhoneStocks
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Garanti Modal */}
+            {warrantySale && (
+                <WarrantyModal
+                    lockedItem={{ itemType: 'phone', itemId: warrantySale.id }}
+                    defaults={{
+                        imei: warrantySale.imei,
+                        serialNumber: `${warrantySale.brand} ${warrantySale.model}`.trim(),
+                        customerName: warrantySale.customerName,
+                        customerPhone: warrantySale.customerPhone,
+                        purchaseDate: warrantySale.date,
+                    }}
+                    existing={warrantyExisting}
+                    onSaved={() => { }}
+                    onDeleted={() => { }}
+                    onClose={() => { setWarrantySale(null); setWarrantyExisting(null); }}
+                />
             )}
         </div>
     );

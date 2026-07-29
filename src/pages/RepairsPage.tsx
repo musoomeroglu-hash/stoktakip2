@@ -1,13 +1,16 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import type { RepairRecord, Supplier, Customer } from '../types';
 import { formatDate, getRepairStatusInfo, generateId } from '../utils/helpers';
+import { computeRepairProfit, returnsTotal, repairNetRevenue, getCommissionRate } from '../utils/repairMath';
 import { useFormatPrice } from '../components/PriceVisibility';
 import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
 import { Html5Qrcode } from 'html5-qrcode';
 import CustomerSelector from '../components/CustomerSelector';
 import RepairPhotoGallery from '../components/RepairPhotoGallery';
-import type { RepairPhoto } from '../types';
+import WarrantyModal from '../components/WarrantyModal';
+import RepairReturnModal from '../components/RepairReturnModal';
+import type { RepairPhoto, WarrantyRecord } from '../types';
 import { jsPDF } from 'jspdf';
 
 function RepairPhotoGalleryModal({ repair, onClose }: { repair: RepairRecord; onClose: () => void }) {
@@ -86,6 +89,25 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
     const [showScanner, setShowScanner] = useState(false);
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [photoRepair, setPhotoRepair] = useState<RepairRecord | null>(null);
+    const [warrantyRepair, setWarrantyRepair] = useState<RepairRecord | null>(null);
+    const [warrantyExisting, setWarrantyExisting] = useState<WarrantyRecord | null>(null);
+    const [warrantyLoading, setWarrantyLoading] = useState(false);
+    const [returnRepair, setReturnRepair] = useState<RepairRecord | null>(null);
+
+    // Aynı tamire ikinci kez garanti eklenmesin: varsa mevcut kaydı düzenleme modunda aç
+    const openWarranty = async (repair: RepairRecord) => {
+        setWarrantyLoading(true);
+        try {
+            const existing = await api.getWarrantyForItem('repair', repair.id);
+            setWarrantyExisting(existing);
+        } catch (err) {
+            console.warn('Warranty lookup failed:', err);
+            setWarrantyExisting(null);
+        } finally {
+            setWarrantyLoading(false);
+            setWarrantyRepair(repair);
+        }
+    };
 
     // Start barcode scanner
     const startScanner = useCallback(async () => {
@@ -153,7 +175,7 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
             cancelled: [220, 38, 38],
         };
 
-        const storeName = (localStorage.getItem('storeName') || 'TEKNİK SERVİS').toUpperCase();
+        const storeName = (localStorage.getItem('storeName') || 'TEKNİK SERVİS').toLocaleUpperCase('tr-TR');
         const storePhone = localStorage.getItem('storePhone') || '';
         const money = (n: number) => `${(n || 0).toLocaleString('tr-TR')} TL`;
         const setColor = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
@@ -268,11 +290,13 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
 
         // ===== Ücretlendirme tablosu =====
         sectionTitle('Ücretlendirme');
-        const remaining = (repair.repairCost || 0) - (repair.prePayment || 0);
+        const refunded = returnsTotal(repair);
+        const remaining = (repair.repairCost || 0) - (repair.prePayment || 0) - refunded;
         const rows: [string, string][] = [
             ['Tamir Ücreti', money(repair.repairCost)],
             ['Ön Ödeme', money(repair.prePayment)],
         ];
+        if (refunded > 0) rows.push(['İade / Değişim', `-${money(refunded)}`]);
         const rowH = 9;
         rows.forEach((r, i) => {
             if (i % 2 === 1) {
@@ -418,17 +442,25 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
     const handleSave = async () => {
         if (!form.customerName || !form.deviceInfo) { showToast('Müşteri adı ve cihaz bilgisi zorunlu!', 'error'); return; }
         try {
-            const commissionRate = parseFloat(localStorage.getItem('cardCommissionRate') || '0');
-            let profit = form.repairCost - form.partsCost;
-            if (form.paymentMethod === 'card' && commissionRate > 0) {
-                profit -= form.repairCost * (commissionRate / 100);
-            }
+            // İade kayıtları form state'inde tutulmuyor; korunmazsa PUT ile silinirler.
+            const existingReturns = editing?.returns;
+            const profit = computeRepairProfit({
+                repairCost: form.repairCost,
+                partsCost: form.partsCost,
+                paymentMethod: form.paymentMethod,
+                commissionRate: getCommissionRate(),
+                returnsTotal: returnsTotal({ returns: existingReturns }),
+            });
 
             const recordData = {
                 ...form,
                 profit,
+                returns: existingReturns,
                 createdAt: editing?.createdAt || new Date().toISOString(),
-                deliveredAt: form.status === 'delivered' ? new Date().toISOString() : undefined,
+                // Mevcut teslim tarihi korunur; düzenleme her kaydedişte tarihi bugüne kaydırmamalı.
+                deliveredAt: form.status === 'delivered'
+                    ? (editing?.deliveredAt || new Date().toISOString())
+                    : editing?.deliveredAt,
             };
 
             if (editing) {
@@ -575,10 +607,26 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
                                                     <div className="font-medium text-white">{r.customerName}</div>
                                                     <div className="text-xs text-slate-400">{r.customerPhone}</div>
                                                 </td>
-                                                <td className="p-4 text-white">{r.deviceInfo}</td>
+                                                <td className="p-4 text-white">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{r.deviceInfo}</span>
+                                                        {(r.returns?.length ?? 0) > 0 && (
+                                                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-500/20 text-orange-400 whitespace-nowrap" title="İade / değişim işlemi var">
+                                                                İade
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
                                                 <td className="p-4 text-slate-400 font-mono text-xs">{r.imei || '—'}</td>
-                                                <td className="p-4 text-right font-medium text-white">{fp(r.repairCost)}</td>
-                                                <td className="p-4 text-right font-medium text-emerald-400">+{fp(r.profit)}</td>
+                                                <td className="p-4 text-right font-medium text-white">
+                                                    {returnsTotal(r) > 0 ? (
+                                                        <div>
+                                                            <span className="line-through text-slate-500 text-xs mr-1">{fp(r.repairCost)}</span>
+                                                            {fp(repairNetRevenue(r))}
+                                                        </div>
+                                                    ) : fp(r.repairCost)}
+                                                </td>
+                                                <td className={`p-4 text-right font-medium ${r.profit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{r.profit < 0 ? '' : '+'}{fp(r.profit)}</td>
                                                 {/* Status Column with Progression Button */}
                                                 <td className="p-4">
                                                     <div className="flex flex-col gap-1.5">
@@ -692,6 +740,9 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
                                     <div className="flex justify-between text-sm"><span className="text-slate-400">Tamir Ücreti</span><span className="text-white font-medium">{fp(selectedRepair.repairCost)}</span></div>
                                     <div className="flex justify-between text-sm"><span className="text-slate-400">Parça Maliyeti</span><span className="text-red-400">-{fp(selectedRepair.partsCost)}</span></div>
                                     {selectedRepair.prePayment > 0 && <div className="flex justify-between text-sm"><span className="text-slate-400">Ön Ödeme</span><span className="text-blue-400">{fp(selectedRepair.prePayment)}</span></div>}
+                                    {returnsTotal(selectedRepair) > 0 && (
+                                        <div className="flex justify-between text-sm"><span className="text-slate-400">İade / Değişim</span><span className="text-orange-400">-{fp(returnsTotal(selectedRepair))}</span></div>
+                                    )}
                                     <div className="border-t border-slate-700 pt-2 flex justify-between text-sm font-bold"><span className="text-slate-300">Net Kâr</span><span className="text-emerald-400">{fp(selectedRepair.profit)}</span></div>
                                 </div>
                             </div>
@@ -732,6 +783,12 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
                                 </button>
                                 <button onClick={() => setPhotoRepair(selectedRepair)} className="flex-1 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
                                     <span className="material-symbols-outlined text-lg">photo_camera</span> Fotoğraflar
+                                </button>
+                                <button onClick={() => openWarranty(selectedRepair)} disabled={warrantyLoading} className="flex-1 py-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors disabled:opacity-50">
+                                    <span className="material-symbols-outlined text-lg">verified_user</span> {warrantyLoading ? '...' : 'Garanti'}
+                                </button>
+                                <button onClick={() => setReturnRepair(selectedRepair)} className="flex-1 py-2.5 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                                    <span className="material-symbols-outlined text-lg">assignment_return</span> İade / Değişim
                                 </button>
                                 <button onClick={() => openEdit(selectedRepair)} className="flex-1 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
                                     <span className="material-symbols-outlined text-lg">edit</span> Düzenle
@@ -848,6 +905,35 @@ export default function RepairsPage({ repairs, setRepairs, suppliers, customers,
             {/* Photo Gallery Modal */}
             {photoRepair && (
                 <RepairPhotoGalleryModal repair={photoRepair} onClose={() => setPhotoRepair(null)} />
+            )}
+
+            {returnRepair && (
+                <RepairReturnModal
+                    repair={returnRepair}
+                    onSaved={(updated) => {
+                        setRepairs(repairs.map(r => r.id === updated.id ? updated : r));
+                        setReturnRepair(updated);
+                        setSelectedRepair(prev => prev && prev.id === updated.id ? updated : prev);
+                    }}
+                    onClose={() => setReturnRepair(null)}
+                />
+            )}
+
+            {warrantyRepair && (
+                <WarrantyModal
+                    lockedItem={{ itemType: 'repair', itemId: warrantyRepair.id }}
+                    defaults={{
+                        imei: warrantyRepair.imei,
+                        serialNumber: warrantyRepair.deviceInfo,
+                        customerName: warrantyRepair.customerName,
+                        customerPhone: warrantyRepair.customerPhone,
+                        purchaseDate: warrantyRepair.deliveredAt || warrantyRepair.createdAt,
+                    }}
+                    existing={warrantyExisting}
+                    onSaved={() => { }}
+                    onDeleted={() => { }}
+                    onClose={() => { setWarrantyRepair(null); setWarrantyExisting(null); }}
+                />
             )}
 
             {

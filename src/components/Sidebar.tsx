@@ -1,3 +1,5 @@
+import { getUserEmail } from '../utils/auth';
+
 interface SidebarProps {
     activeView: string;
     onViewChange: (view: string) => void;
@@ -129,7 +131,7 @@ export default function Sidebar({
                         </div>
                         <div className="flex-1">
                             <span className="text-sm font-semibold text-slate-900 block">Admin</span>
-                            <span className="text-xs text-slate-400">technocep</span>
+                            <span className="text-xs text-slate-400 truncate block">{getUserEmail().split('@')[0] || 'technocep'}</span>
                         </div>
                         <span className="material-symbols-outlined text-slate-400 hover:text-red-400 transition-colors">logout</span>
                     </div>

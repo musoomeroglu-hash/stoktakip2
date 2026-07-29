@@ -40,6 +40,19 @@ export interface Sale {
   customerInfo?: { name: string; phone: string };
 }
 
+/** Tamir edilen cihaz geri geldiğinde açılan iade veya değişim işlemi. */
+export interface RepairReturn {
+  id: string;
+  type: 'iade' | 'degisim';
+  date: string;
+  reason: string;
+  /** İade edilen tutar. Değişimde 0 olabilir. */
+  refundAmount: number;
+  /** Değişim yapıldıysa müşteriye verilen cihaz. */
+  replacementDevice?: string;
+  notes?: string;
+}
+
 export interface RepairRecord {
   id: string;
   customerName: string;
@@ -59,6 +72,8 @@ export interface RepairRecord {
   supplierName?: string;
   createdAt: string;
   deliveredAt?: string;
+  /** İade/değişim işlemleri. Edge Function KV store şemasız olduğu için migration gerekmez. */
+  returns?: RepairReturn[];
 }
 
 export interface PhoneSale {

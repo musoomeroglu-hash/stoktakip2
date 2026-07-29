@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { signIn } from '../utils/auth';
 
 interface LoginPageProps {
     onLogin: () => void;
@@ -8,22 +9,26 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [hint, setHint] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setHint('');
 
-        setTimeout(() => {
-            if (username === 'technocep' && password === 'technocep') {
-                localStorage.setItem('isAuth', 'true');
-                onLogin();
-            } else {
-                setError('Kullanıcı adı veya şifre hatalı!');
+        const result = await signIn(username, password);
+        if (result.ok) {
+            onLogin();
+        } else {
+            setError(result.message);
+            // Kurulum hatasını normal "şifre yanlış" durumundan ayır
+            if (result.reason === 'setup') {
+                setHint('Supabase panelinde Authentication → Users bölümünden kullanıcının oluşturulduğundan emin olun.');
             }
-            setLoading(false);
-        }, 500);
+        }
+        setLoading(false);
     };
 
     return (
@@ -75,9 +80,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                         </div>
 
                         {error && (
-                            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                                <span className="material-symbols-outlined text-lg">error</span>
-                                {error}
+                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-lg">error</span>
+                                    {error}
+                                </div>
+                                {hint && <p className="text-xs text-red-300/80 pl-7">{hint}</p>}
                             </div>
                         )}
 

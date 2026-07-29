@@ -6,6 +6,7 @@ import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
 import CustomerSelector from '../components/CustomerSelector';
 import { Html5Qrcode } from 'html5-qrcode';
+import { repairNetRevenue } from '../utils/repairMath';
 
 // Searchable product dropdown component
 function ProductSearchDropdown({ products, selectedId, onSelect, fp }: {
@@ -226,9 +227,36 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
             return d >= startDate && d <= endDate;
         }), [phoneSales, period, customStart, customEnd]);
 
+    // PDF işlem dökümü — üstteki dönem filtresini kullanır
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const periodLabel = period === 'custom' && customStart && customEnd
+        ? `${new Date(customStart).toLocaleDateString('tr-TR')} - ${new Date(customEnd).toLocaleDateString('tr-TR')}`
+        : { today: 'Bugün', thisMonth: 'Bu Ay', lastMonth: 'Geçen Ay', all: 'Tüm Zamanlar', custom: 'Özel' }[period];
+
+    const handleAllTransactionsReport = async () => {
+        if (filteredSales.length + filteredRepairs.length + filteredPhoneSales.length === 0) {
+            showToast(`${periodLabel} döneminde kayıt yok!`, 'warning');
+            return;
+        }
+        setPdfLoading(true);
+        try {
+            const { generateAllTransactionsReport } = await import('../utils/reportPdf');
+            await generateAllTransactionsReport(
+                { repairs: filteredRepairs, phoneSales: filteredPhoneSales, productSales: filteredSales },
+                { periodLabel },
+            );
+            showToast('İşlem dökümü indirildi!');
+        } catch (err) {
+            console.error('Transactions report error:', err);
+            showToast('PDF oluşturulamadı!', 'error');
+        } finally {
+            setPdfLoading(false);
+        }
+    };
+
     // KPI calculations — all sources combined
     const totalRevenue = filteredSales.reduce((s, v) => s + v.totalPrice, 0)
-        + filteredRepairs.reduce((s, v) => s + v.repairCost, 0)
+        + filteredRepairs.reduce((s, v) => s + repairNetRevenue(v), 0)
         + filteredPhoneSales.reduce((s, v) => s + v.salePrice, 0);
 
     const totalProfit = filteredSales.reduce((s, v) => s + v.totalProfit, 0)
@@ -244,7 +272,7 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
 
     // Revenue breakdown per source
     const salesRevenue = filteredSales.reduce((s, v) => s + v.totalPrice, 0);
-    const repairsRevenue = filteredRepairs.reduce((s, v) => s + v.repairCost, 0);
+    const repairsRevenue = filteredRepairs.reduce((s, v) => s + repairNetRevenue(v), 0);
     const phoneRevenue = filteredPhoneSales.reduce((s, v) => s + v.salePrice, 0);
 
     // Add item to sale
@@ -374,6 +402,16 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
                     </div>
 
                     <button
+                        onClick={handleAllTransactionsReport}
+                        disabled={pdfLoading}
+                        title="Seçili dönemdeki tüm işlemleri PDF olarak indir"
+                        className="w-full lg:w-auto px-4 py-2.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        <span className="material-symbols-outlined">picture_as_pdf</span>
+                        {pdfLoading ? 'Hazırlanıyor...' : 'İşlem Dökümü'}
+                    </button>
+
+                    <button
                         onClick={() => { setShowSaleModal(true); setSaleItems([]); }}
                         className="w-full lg:w-auto px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-sm font-bold shadow-lg shadow-primary/25 flex items-center justify-center gap-2 transition-all active:scale-95"
                     >
@@ -415,7 +453,7 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
                 const paymentTotals: Record<string, number> = { cash: 0, card: 0, transfer: 0 };
                 let txCount = 0;
                 filteredSales.forEach(s => { paymentTotals[s.paymentMethod] = (paymentTotals[s.paymentMethod] || 0) + s.totalPrice; txCount++; });
-                filteredRepairs.forEach(r => { paymentTotals[r.paymentMethod || 'cash'] = (paymentTotals[r.paymentMethod || 'cash'] || 0) + r.repairCost; txCount++; });
+                filteredRepairs.forEach(r => { paymentTotals[r.paymentMethod || 'cash'] = (paymentTotals[r.paymentMethod || 'cash'] || 0) + repairNetRevenue(r); txCount++; });
                 filteredPhoneSales.forEach(ps => { paymentTotals['cash'] += ps.salePrice; txCount++; });
                 const grandTotal = Object.values(paymentTotals).reduce((a, b) => a + b, 0);
                 const methods = [
@@ -558,8 +596,8 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
                                             <tr key={r.id} className="hover:bg-surface-hover/50 transition-colors">
                                                 <td className="p-3 text-slate-300">{formatDate(r.createdAt)}</td>
                                                 <td className="p-3">{r.customerName}</td><td className="p-3 text-slate-300">{r.deviceInfo}</td>
-                                                <td className="p-3 text-right font-medium text-white">{fp(r.repairCost)}</td>
-                                                <td className="p-3 text-right font-medium text-emerald-400">+{fp(r.profit)}</td>
+                                                <td className="p-3 text-right font-medium text-white">{fp(repairNetRevenue(r))}</td>
+                                                <td className={`p-3 text-right font-medium ${r.profit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{r.profit < 0 ? '' : '+'}{fp(r.profit)}</td>
                                                 <td className="p-3"><span className={`px-2.5 py-1 rounded-full text-xs font-medium ${st.color}`}>{st.label}</span></td>
                                             </tr>
                                         );
@@ -609,7 +647,7 @@ export default function SalesPage({ sales, repairs, phoneSales, products, setSal
                                     </div>
                                     <div className="flex justify-between p-3 rounded-lg bg-slate-800/50">
                                         <span className="text-slate-300">Tamir Gelirleri</span>
-                                        <span className="text-white font-medium">{fp(filteredRepairs.reduce((s, v) => s + v.repairCost, 0))}</span>
+                                        <span className="text-white font-medium">{fp(filteredRepairs.reduce((s, v) => s + repairNetRevenue(v), 0))}</span>
                                     </div>
                                     <div className="flex justify-between p-3 rounded-lg bg-slate-800/50">
                                         <span className="text-slate-300">Telefon Satışları</span>

@@ -5,6 +5,8 @@ import { useFormatPrice } from '../components/PriceVisibility';
 import { useToast } from '../components/Toast';
 import * as api from '../utils/api';
 import { uploadPhoto } from '../utils/uploadToSupabase';
+import { repairNetRevenue } from '../utils/repairMath';
+import { findCustomer as matchCustomer } from '../utils/customerMatch';
 
 interface CustomersPageProps {
     repairs: RepairRecord[];
@@ -72,18 +74,8 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
             return map.get(customerId)!;
         };
 
-        // Match by name/phone to customer
-        const findCustomer = (name: string, phone: string): Customer | undefined => {
-            const n = (name || '').trim().toLowerCase();
-            const p = (phone || '').trim();
-            return customers.find(c => {
-                const cn = (c.name || '').toLowerCase();
-                const cp = (c.phone || '').trim();
-                if (p && cp && p === cp) return true;
-                if (n && cn === n) return true;
-                return false;
-            });
-        };
+        // Kayıtlarda customerId yok; eşleştirme ortak yardımcı ile yapılır
+        const findCustomer = (name: string, phone: string) => matchCustomer(customers, name, phone);
 
         const start = getStartDate().getTime();
         const end = getEndDate().getTime();
@@ -94,7 +86,7 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
             const c = findCustomer(r.customerName, r.customerPhone);
             if (!c) continue;
             const s = getOrCreate(c.id);
-            s.totalSpent += r.repairCost; s.totalProfit += r.profit; s.repairCount++;
+            s.totalSpent += repairNetRevenue(r); s.totalProfit += r.profit; s.repairCount++;
             s.repairs.push(r);
             if (!s.lastTx || r.createdAt > s.lastTx) s.lastTx = r.createdAt;
         }
@@ -148,6 +140,36 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
 
     const selectedCustomer = customers.find(c => c.id === selectedCustomerId) || null;
     const selectedStats = selectedCustomer ? customerStats.get(selectedCustomer.id) : null;
+
+    // PDF rapor — sayfadaki dönem filtresini kullanır, ayrı tarih seçimi yok
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const periodLabel = period === 'custom' && customStart && customEnd
+        ? `${new Date(customStart).toLocaleDateString('tr-TR')} - ${new Date(customEnd).toLocaleDateString('tr-TR')}`
+        : { today: 'Bugün', thisMonth: 'Bu Ay', lastMonth: 'Geçen Ay', all: 'Tüm Zamanlar', custom: 'Özel' }[period];
+
+    const handleCustomerReport = async (customer: Customer) => {
+        const stats = customerStats.get(customer.id);
+        const data = {
+            repairs: stats?.repairs || [],
+            phoneSales: stats?.phoneSales || [],
+            productSales: stats?.productSales || [],
+        };
+        if (data.repairs.length + data.phoneSales.length + data.productSales.length === 0) {
+            showToast(`${periodLabel} döneminde bu müşteriye ait kayıt yok!`, 'warning');
+            return;
+        }
+        setPdfLoading(true);
+        try {
+            const { generateCustomerReport } = await import('../utils/reportPdf');
+            await generateCustomerReport(customer, data, { periodLabel });
+            showToast('PDF raporu indirildi!');
+        } catch (err) {
+            console.error('Customer report error:', err);
+            showToast('PDF oluşturulamadı!', 'error');
+        } finally {
+            setPdfLoading(false);
+        }
+    };
 
 
     // Cari totals
@@ -455,13 +477,20 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                             </div>
 
                             {/* Actions */}
-                            <div className="flex gap-2">
-                                <button onClick={() => openEdit(selectedCustomer)} className="flex-1 py-2 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 text-violet-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
-                                    <span className="material-symbols-outlined text-lg">edit</span>Düzenle
+                            <div className="space-y-2">
+                                <button onClick={() => handleCustomerReport(selectedCustomer)} disabled={pdfLoading}
+                                    className="w-full py-2 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50">
+                                    <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
+                                    {pdfLoading ? 'Hazırlanıyor...' : `PDF Rapor (${periodLabel})`}
                                 </button>
-                                <button onClick={() => setDeleteTarget(selectedCustomer.id)} className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-sm">
-                                    <span className="material-symbols-outlined text-lg">delete</span>
-                                </button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => openEdit(selectedCustomer)} className="flex-1 py-2 bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/30 text-violet-400 rounded-lg text-sm font-medium flex items-center justify-center gap-2">
+                                        <span className="material-symbols-outlined text-lg">edit</span>Düzenle
+                                    </button>
+                                    <button onClick={() => setDeleteTarget(selectedCustomer.id)} className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg text-sm">
+                                        <span className="material-symbols-outlined text-lg">delete</span>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Contact Info */}
@@ -534,8 +563,8 @@ export default function CustomersPage({ repairs, phoneSales, sales, customers, s
                                     <div className="space-y-2">
                                         {selectedStats.repairs.map(r => (
                                             <div key={r.id} className="p-3 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                                                <div className="flex justify-between items-start"><div><p className="text-sm font-medium text-white">{r.deviceInfo}</p><p className="text-xs text-slate-400">{r.problemDescription || '—'}</p></div><span className="text-sm font-bold text-white">{fp(r.repairCost)}</span></div>
-                                                <div className="flex justify-between items-center mt-2"><span className="text-xs text-slate-500">{formatDate(r.createdAt)}</span><span className="text-xs text-emerald-400">+{fp(r.profit)}</span></div>
+                                                <div className="flex justify-between items-start"><div><p className="text-sm font-medium text-white">{r.deviceInfo}</p><p className="text-xs text-slate-400">{r.problemDescription || '—'}</p></div><span className="text-sm font-bold text-white">{fp(repairNetRevenue(r))}</span></div>
+                                                <div className="flex justify-between items-center mt-2"><span className="text-xs text-slate-500">{formatDate(r.createdAt)}</span><span className={`text-xs ${r.profit < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{r.profit < 0 ? '' : '+'}{fp(r.profit)}</span></div>
                                             </div>
                                         ))}
                                     </div>

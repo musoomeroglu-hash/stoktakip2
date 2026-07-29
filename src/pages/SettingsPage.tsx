@@ -1,17 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '../components/Toast';
 import { useTheme, COLOR_THEMES } from '../contexts/ThemeContext';
+import { changePassword, getUserEmail } from '../utils/auth';
 
 export default function SettingsPage() {
     const { showToast } = useToast();
     const { currentTheme, setTheme } = useTheme();
     const [cardCommissionRate, setCardCommissionRate] = useState<number>(0);
+    const [storeName, setStoreName] = useState('');
+    const [storePhone, setStorePhone] = useState('');
 
     useEffect(() => {
         const storedRate = localStorage.getItem('cardCommissionRate');
         if (storedRate) {
             setCardCommissionRate(parseFloat(storedRate));
         }
+        setStoreName(localStorage.getItem('storeName') || '');
+        setStorePhone(localStorage.getItem('storePhone') || '');
     }, []);
 
     const handleSave = () => {
@@ -21,6 +26,42 @@ export default function SettingsPage() {
         }
         localStorage.setItem('cardCommissionRate', cardCommissionRate.toString());
         showToast('Ayarlar başarıyla kaydedildi!', 'success');
+    };
+
+    const handleSaveStore = () => {
+        localStorage.setItem('storeName', storeName.trim());
+        localStorage.setItem('storePhone', storePhone.trim());
+        showToast('Mağaza bilgileri kaydedildi!', 'success');
+    };
+
+    // Şifre değiştirme
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newPassword2, setNewPassword2] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
+    const handleChangePassword = async () => {
+        if (!currentPassword || !newPassword) {
+            showToast('Mevcut ve yeni şifreyi girin!', 'error');
+            return;
+        }
+        if (newPassword.length < 6) {
+            showToast('Yeni şifre en az 6 karakter olmalı!', 'error');
+            return;
+        }
+        if (newPassword !== newPassword2) {
+            showToast('Yeni şifreler eşleşmiyor!', 'error');
+            return;
+        }
+        setChangingPassword(true);
+        const result = await changePassword(currentPassword, newPassword);
+        if (result.ok) {
+            showToast('Şifreniz değiştirildi! Diğer cihazlarda da geçerli.', 'success');
+            setCurrentPassword(''); setNewPassword(''); setNewPassword2('');
+        } else {
+            showToast(result.message, 'error');
+        }
+        setChangingPassword(false);
     };
 
     return (
@@ -114,6 +155,122 @@ export default function SettingsPage() {
                                 <p className="text-[10px] text-slate-500 font-mono">{color}</p>
                             </div>
                         ))}
+                    </div>
+                </div>
+
+                {/* Şifre & Güvenlik */}
+                <div className="bg-surface-dark border flex flex-col gap-4 border-slate-700/50 p-6 rounded-2xl">
+                    <div className="flex items-center gap-3 border-b border-slate-700/50 pb-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary">lock</span>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Şifre &amp; Güvenlik</h3>
+                            <p className="text-sm text-slate-400">
+                                Giriş şifrenizi değiştirin. Yeni şifre tüm cihazlarda geçerli olur.
+                                {getUserEmail() && <span className="block mt-0.5">Hesap: <strong>{getUserEmail()}</strong></span>}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                        <div className="max-w-sm">
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Mevcut Şifre</label>
+                            <input
+                                type="password"
+                                value={currentPassword}
+                                onChange={(e) => setCurrentPassword(e.target.value)}
+                                autoComplete="current-password"
+                                className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-white focus:border-primary outline-none font-medium"
+                            />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Yeni Şifre</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    autoComplete="new-password"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-white focus:border-primary outline-none font-medium"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Yeni Şifre (Tekrar)</label>
+                                <input
+                                    type="password"
+                                    value={newPassword2}
+                                    onChange={(e) => setNewPassword2(e.target.value)}
+                                    autoComplete="new-password"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-white focus:border-primary outline-none font-medium"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-500 leading-relaxed">
+                            * En az 6 karakter. Şifrenizi unutursanız Supabase panelinden sıfırlayabilirsiniz.
+                        </p>
+
+                        <div className="pt-2 flex justify-start">
+                            <button
+                                onClick={handleChangePassword}
+                                disabled={changingPassword}
+                                className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined text-sm">key</span>
+                                {changingPassword ? 'Değiştiriliyor...' : 'Şifreyi Değiştir'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Mağaza Bilgileri */}
+                <div className="bg-surface-dark border flex flex-col gap-4 border-slate-700/50 p-6 rounded-2xl">
+                    <div className="flex items-center gap-3 border-b border-slate-700/50 pb-4">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-primary">storefront</span>
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-white">Mağaza Bilgileri</h3>
+                            <p className="text-sm text-slate-400">Servis formu ve PDF raporlarının başlığında görünür.</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Mağaza Adı</label>
+                                <input
+                                    type="text"
+                                    value={storeName}
+                                    onChange={(e) => setStoreName(e.target.value)}
+                                    placeholder="TEKNİK SERVİS"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-white focus:border-primary outline-none font-medium"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Telefon</label>
+                                <input
+                                    type="text"
+                                    value={storePhone}
+                                    onChange={(e) => setStorePhone(e.target.value)}
+                                    placeholder="0555 123 45 67"
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-3 px-4 text-white focus:border-primary outline-none font-medium"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-sm text-slate-500 leading-relaxed">
+                            * Boş bırakılırsa belgelerde <strong>"TEKNİK SERVİS"</strong> yazar. Bu bilgi bu cihazda saklanır.
+                        </p>
+
+                        <div className="pt-2 flex justify-start">
+                            <button
+                                onClick={handleSaveStore}
+                                className="px-6 py-2.5 bg-primary hover:bg-primary/90 text-black font-semibold rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
+                            >
+                                <span className="material-symbols-outlined text-sm">save</span>
+                                Mağaza Bilgilerini Kaydet
+                            </button>
+                        </div>
                     </div>
                 </div>
 

@@ -26,6 +26,7 @@ import SettingsPage from './pages/SettingsPage';
 import { ThemeProvider } from './contexts/ThemeContext';
 import type { Category, Product, Sale, RepairRecord, PhoneSale, PhoneStock, Expense, CustomerRequest, Supplier, Purchase, Customer } from './types';
 import * as api from './utils/api';
+import * as auth from './utils/auth';
 
 const viewLabels: Record<string, string> = {
   sales: 'Satış & Raporlar', products: 'Ürünler', repairs: 'Tamir Kayıtları',
@@ -36,7 +37,7 @@ const viewLabels: Record<string, string> = {
 };
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem('isAuth') === 'true');
+  const [isAuthenticated, setIsAuthenticated] = useState(auth.isLoggedIn());
   const [activeView, setActiveView] = useState('sales');
   const [loading, setLoading] = useState(false);
 
@@ -81,9 +82,20 @@ export default function App() {
     if (isAuthenticated) loadAllData();
   }, [isAuthenticated, loadAllData]);
 
+  // Açılışta oturumu tazele; token gerçekten geçersizse çıkış yapılır
+  // (çevrimdışıyken oturum düşmez — refreshSession bunu kendisi ayırt eder).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    auth.refreshSession().then(valid => {
+      if (!valid) setIsAuthenticated(false);
+    });
+    // yalnızca ilk açılışta
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleLogin = () => setIsAuthenticated(true);
   const handleLogout = () => {
-    localStorage.removeItem('isAuth');
+    auth.signOut();
     setIsAuthenticated(false);
   };
 

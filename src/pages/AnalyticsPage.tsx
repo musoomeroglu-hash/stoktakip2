@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import type { Sale, RepairRecord, PhoneSale, Expense } from '../types';
 import { useFormatPrice } from '../components/PriceVisibility';
+import { repairNetRevenue } from '../utils/repairMath';
 
 interface AnalyticsPageProps {
     sales: Sale[];
@@ -61,7 +62,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
             const label = d.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short' });
 
             const dayRevenue = fSales.filter(s => s.date?.startsWith(dayStr)).reduce((sum, s) => sum + s.totalPrice, 0)
-                + fRepairs.filter(r => r.createdAt?.startsWith(dayStr)).reduce((sum, r) => sum + r.repairCost, 0)
+                + fRepairs.filter(r => r.createdAt?.startsWith(dayStr)).reduce((sum, r) => sum + repairNetRevenue(r), 0)
                 + fPhoneSales.filter(ps => ps.date?.startsWith(dayStr)).reduce((sum, ps) => sum + ps.salePrice, 0);
 
             const dayProfit = fSales.filter(s => s.date?.startsWith(dayStr)).reduce((sum, s) => sum + s.totalProfit, 0)
@@ -106,7 +107,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
         }));
         // Repairs
         if (fRepairs.length > 0) {
-            map['Tamir'] = { count: fRepairs.length, revenue: fRepairs.reduce((s, r) => s + r.repairCost, 0) };
+            map['Tamir'] = { count: fRepairs.length, revenue: fRepairs.reduce((s, r) => s + repairNetRevenue(r), 0) };
         }
         // Phone sales
         if (fPhoneSales.length > 0) {
@@ -142,7 +143,7 @@ export default function AnalyticsPage({ sales, repairs, phoneSales, expenses }: 
 
     // Summary stats
     const totalRevenue = fSales.reduce((s, v) => s + v.totalPrice, 0)
-        + fRepairs.reduce((s, v) => s + v.repairCost, 0)
+        + fRepairs.reduce((s, v) => s + repairNetRevenue(v), 0)
         + fPhoneSales.reduce((s, v) => s + v.salePrice, 0);
     const totalProfit = fSales.reduce((s, v) => s + v.totalProfit, 0)
         + fRepairs.reduce((s, v) => s + v.profit, 0)

@@ -4,8 +4,8 @@ import type {
     WarrantyRecord, Technician, RepairAppointment
 } from '../types';
 
-const SUPABASE_URL = 'https://xtjvbkhappiceyrlovkx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0anZia2hhcHBpY2V5cmxvdmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NTUzNTksImV4cCI6MjA4MjIzMTM1OX0.bUSQ4nkoasOVQdtQwGSxtXiLGbyV9Ih8qlf-sGg3LCg';
+export const SUPABASE_URL = 'https://xtjvbkhappiceyrlovkx.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0anZia2hhcHBpY2V5cmxvdmt4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NTUzNTksImV4cCI6MjA4MjIzMTM1OX0.bUSQ4nkoasOVQdtQwGSxtXiLGbyV9Ih8qlf-sGg3LCg';
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/make-server-929c4905`;
 
 // ── Edge Function REST helpers ──
@@ -498,24 +498,38 @@ export async function markReminderSent(id: string): Promise<void> {
 // ── Warranty Records ──
 export async function getWarrantyRecords(): Promise<WarrantyRecord[]> {
     const data = await dbFetch('/warranty_records?order=warranty_end_date.asc');
-    return (data || []).map((d: Record<string, unknown>) => {
-        const mapped = snakeToCamel(d) as unknown as WarrantyRecord;
-        const daysRemaining = Math.ceil((new Date(mapped.warrantyEndDate).getTime() - Date.now()) / 86400000);
-        return { ...mapped, daysRemaining };
-    });
+    return (data || []).map(withDaysRemaining);
 }
 
-export async function saveWarrantyRecord(w: Partial<WarrantyRecord>) {
+function withDaysRemaining(row: Record<string, unknown>): WarrantyRecord {
+    const mapped = snakeToCamel(row) as unknown as WarrantyRecord;
+    return {
+        ...mapped,
+        daysRemaining: Math.ceil((new Date(mapped.warrantyEndDate).getTime() - Date.now()) / 86400000),
+    };
+}
+
+export async function saveWarrantyRecord(w: Partial<WarrantyRecord>): Promise<WarrantyRecord | null> {
     const payload = camelToSnake(w as Record<string, unknown>);
     delete payload['created_at'];
     delete payload['days_remaining'];
     if (w.id) {
         const res = await dbFetch(`/warranty_records?id=eq.${w.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-        return res?.[0] ? snakeToCamel(res[0] as Record<string, unknown>) : null;
+        return res?.[0] ? withDaysRemaining(res[0] as Record<string, unknown>) : null;
     }
     delete payload['id'];
     const res = await dbFetch('/warranty_records', { method: 'POST', body: JSON.stringify(payload) });
-    return res?.[0] ? snakeToCamel(res[0] as Record<string, unknown>) : null;
+    return res?.[0] ? withDaysRemaining(res[0] as Record<string, unknown>) : null;
+}
+
+export async function deleteWarrantyRecord(id: string) {
+    return dbFetch(`/warranty_records?id=eq.${id}`, { method: 'DELETE' });
+}
+
+// Garanti kaydını bağlı olduğu tamir/telefon kaydına göre bul (mükerrer kayıt önlemi)
+export async function getWarrantyForItem(itemType: string, itemId: string): Promise<WarrantyRecord | null> {
+    const data = await dbFetch(`/warranty_records?item_type=eq.${itemType}&item_id=eq.${encodeURIComponent(itemId)}&limit=1`);
+    return data?.[0] ? withDaysRemaining(data[0]) : null;
 }
 
 // ── Technicians ──

@@ -3,6 +3,7 @@ import { AreaChart, Area, XAxis, YAxis, Grid, ChartTooltip } from './ui/area-cha
 import { getAIForecast } from '../utils/api';
 import { useFormatPrice } from './PriceVisibility';
 import type { Sale, RepairRecord, PhoneSale, Expense } from '../types';
+import { repairNetRevenue } from '../utils/repairMath';
 
 interface AIForecastWidgetProps {
     sales: Sale[];
@@ -44,7 +45,7 @@ export default function AIForecastWidget({ sales, repairs, phoneSales, expenses 
 
             const dayRevenue =
                 sales.filter(s => s.date?.startsWith(dayStr)).reduce((sum, s) => sum + s.totalPrice, 0)
-                + repairs.filter(r => r.createdAt?.startsWith(dayStr) && r.status !== 'cancelled').reduce((sum, r) => sum + r.repairCost, 0)
+                + repairs.filter(r => r.createdAt?.startsWith(dayStr) && r.status !== 'cancelled').reduce((sum, r) => sum + repairNetRevenue(r), 0)
                 + phoneSales.filter(ps => ps.date?.startsWith(dayStr)).reduce((sum, ps) => sum + ps.salePrice, 0);
 
             const dayProfit =
